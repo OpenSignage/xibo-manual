@@ -45,7 +45,7 @@ persona: "スケジュール マネージャー、ディスプレイ マネー�
 - **保存** をクリックして
 
 {tip}
-メインの CMS メニューから **スケジュール** をクリックし、[同期イベントの追加] ボタン (scheduling_events.html#content-synchronised-events) を選択すると、コンテンツを同期グループにスケジュールできるようになりました。
+メインの CMS メニューから **スケジュール** をクリックし、[同期イベントの追加](scheduling_events.html#content-synchronised-events) を選択すると、コンテンツを同期グループにスケジュールできるようになりました。
 
 {/tip}
 

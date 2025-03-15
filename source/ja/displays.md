@@ -163,7 +163,7 @@ Player のインストールに関する管理者向けドキュメントは、[
 **コマンドの送信** 機能は、定義済みのコマンドを選択することで、XMR 経由でプレーヤーに実行されます。これは、たとえばプレーヤーに「再起動」コマンドを送信する場合に便利です。
 
 {tip}
-このタイプの [コマンド](displays_command_ functionality.html) は、[コマンド イベント](scheduling_events.html#content-command) をスケジュールすることによっても実行できます。
+このタイプの [コマンド](displays_command_functionality.html) は、[コマンド イベント](scheduling_events.html#content-command) をスケジュールすることによっても実行できます。
 {/tip}
 
 ### ディスプレイを別の CMS に転送
