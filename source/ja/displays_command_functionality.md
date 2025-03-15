@@ -49,7 +49,7 @@ persona: "ディスプレイ マネージャー、管理者"
 
 {version}
 Phillips Commercial Display の統合は、Android v2 R200 から利用できます。
-{version}
+{/version}
 
 以下のコマンドを使用して、一部の市販のフィリップス ディスプレイの側面にある LED を制御できます:
 
