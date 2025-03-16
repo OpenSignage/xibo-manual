@@ -42,7 +42,8 @@ body {
         display: block;
         margin-left: auto;
         margin-right: auto;
-	margin-bottom: 10px;
+	margin-bottom: 20px;
+	margin-top: 20px;
         border: 2px solid #0e70f6;
         box-shadow: 0 10px 20px rgba(0, 0, 0, .0823529412);
         border-radius: 7px;
@@ -167,19 +168,25 @@ h1 {
 }
 
 h2 {
-	padding: 0.5em;/*文字周りの余白*/
+	padding: 0.3em;/*文字周りの余白*/
 	color: #494949;/*文字色*/
 	background: #eaf3ff;/*背景色*/
 	border-left: solid 5px #516ab6;/*左線（実線 太さ 色）*/
+	font-size: 28px;
+	margin-top: 40px;
 }
 
 h3 {
 	background: linear-gradient(transparent 70%, #a7d6ff 70%);
+	margin-top:30px;
 }
 
 blockquote {
 	font-size: 14px;
 	min-height: 80px;
+	margin-left: 20px;
+	margin-top: 30px;
+	margin-bottom: 30px;
 }
 
 .tip::before {
@@ -210,6 +217,11 @@ blockquote {
 }
 
 .toc_container {
+	margin-top: 20px;
 	width: inherit;	
 	position: fixed;
+}
+
+#side-nav {
+	padding-top: 20px;
 }
