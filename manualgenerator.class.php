@@ -310,18 +310,25 @@ $minHeadingLevel = 1;
     $dom = new DOMDocument();
     @$dom->loadHTML($html);
 
-    $headings = [];
-    for ($level = $minHeadingLevel; $level <= $maxHeadingLevel; $level++) {
-        $tag = 'h' . $level;
-        $elements = $dom->getElementsByTagName($tag);
-        foreach ($elements as $element) {
-            $id = $element->getAttribute('id');
-            $text = $element->textContent;
-            if ($id && $text) {
-                $headings[] = ['id' => $id, 'text' => $text, 'level' => $level];
-            }
-        }
+// 見出し要素をすべて取得
+$allHeadingElements = [];
+for ($level = $minHeadingLevel; $level <= $maxHeadingLevel; $level++) {
+    $tag = 'h' . $level;
+    $elements = $dom->getElementsByTagName($tag);
+    foreach ($elements as $element) {
+        $allHeadingElements[] = $element;
     }
+}
+    $headings = [];
+// 取得した見出し要素を出現順に処理
+foreach ($allHeadingElements as $element) {
+    $id = $element->getAttribute('id');
+    $text = $element->textContent;
+    $level = (int)substr($element->tagName, 1); // タグ名からレベルを取得
+    if ($id && $text) {
+        $headings[] = ['id' => $id, 'text' => $text, 'level' => $level];
+    }
+}
 
     if (empty($headings)) {
         return '<p>指定されたレベル範囲に見出しがありません。</p>';

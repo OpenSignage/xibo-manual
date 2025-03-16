@@ -60,7 +60,21 @@
                 <div class="col-md-2" role="toc">
                     <div class="toc_container">
                         [[TOC]]
+                        <button id="open-popup">AIアシスタント</button>
                     </div>
+
+    <script>
+document.getElementById('open-popup').addEventListener('click', () => {
+    const popupWidth = 600; // ポップアップウィンドウの幅
+    const popupHeight = 400; // ポップアップウィンドウの高さ
+    const screenWidth = window.screen.width; // 画面の幅
+    const screenHeight = window.screen.height; // 画面の高さ
+    const left = (screenWidth - popupWidth) / 2; // ポップアップウィンドウの左位置
+    const top = (screenHeight - popupHeight) / 2; // ポップアップウィンドウの上位置
+
+    window.open('popup.html', 'popup', `width=${popupWidth},height=${popupHeight},left=${left},top=${top}`);
+});
+    </script>
                 </div>
             </div>
         </div> <!-- container-->
