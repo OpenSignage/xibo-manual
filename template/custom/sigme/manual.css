@@ -208,3 +208,8 @@ blockquote {
         margin-right: 5px;
         float: left;
 }
+
+.toc_container {
+	width: inherit;	
+	position: fixed;
+}
