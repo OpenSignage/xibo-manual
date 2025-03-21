@@ -1,0 +1,5 @@
+{
+    "require": {
+        "google/cloud-discoveryengine": "^0.9.0"
+    }
+}
