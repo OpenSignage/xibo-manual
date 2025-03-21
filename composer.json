@@ -8,6 +8,8 @@
         "league/commonmark": "^2.3",
         "webuni/front-matter": "^1.4",
         "google/cloud-translate": "^1.17",
-        "google/cloud-ai-platform": "^0.34.0"
+        "google/cloud-ai-platform": "^0.34.0",
+        "google/cloud-discoveryengine": "^0.9.0",
+        "google/cloud-core": "^1.56"
     }
 }

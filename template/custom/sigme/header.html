@@ -62,19 +62,26 @@
                         [[TOC]]
                         <button id="open-popup">AIアシスタント</button>
                     </div>
+                    <script>
+                        document.getElementById('open-popup').addEventListener('click', () => {
+                        const popupWidth = 400;
+                        const popupHeight = 600;
 
-    <script>
-document.getElementById('open-popup').addEventListener('click', () => {
-    const popupWidth = 600; // ポップアップウィンドウの幅
-    const popupHeight = 400; // ポップアップウィンドウの高さ
-    const screenWidth = window.screen.width; // 画面の幅
-    const screenHeight = window.screen.height; // 画面の高さ
-    const left = (screenWidth - popupWidth) / 2; // ポップアップウィンドウの左位置
-    const top = (screenHeight - popupHeight) / 2; // ポップアップウィンドウの上位置
+                        // 親ウィンドウのサイズと位置を取得
+                        const parentWindow = window.opener || window; // 親ウィンドウを取得
+                        const parentWidth = parentWindow.innerWidth;
+                        const parentHeight = parentWindow.innerHeight;
+                        const parentLeft = parentWindow.screenX || parentWindow.screenLeft || 0;
+                        const parentTop = parentWindow.screenY || parentWindow.screenTop || 0;
 
-    window.open('popup.html', 'popup', `width=${popupWidth},height=${popupHeight},left=${left},top=${top}`);
-});
-    </script>
+                        // ポップアップウィンドウの表示位置を計算
+                        const left = parentLeft + parentWidth - popupWidth;
+                        const top = parentTop + parentHeight - popupHeight;
+
+                        // ポップアップウィンドウを開く
+                        window.open('../ai/ai_assistant.html', 'popup', `width=${popupWidth},height=${popupHeight},left=${left},top=${top},menubar=no,toolbar=no,location=no,status=no,resizable=yes,scrollbars=no`);
+                        });
+                    </script>
                 </div>
             </div>
         </div> <!-- container-->
