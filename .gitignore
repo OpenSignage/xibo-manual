@@ -3,8 +3,7 @@
 output/
 
 desktop.ini
-translate_api.key
-translate.php
+apikey.txt
 translate_with_glossary.php
 
 ai/config.php
