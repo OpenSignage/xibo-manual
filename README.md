@@ -34,7 +34,7 @@ are build using inheritance from the default theme.
 To translate English manual to Japanese, translator.php can provide machine translation.
 
 ```
-php translator.php [translation target md file]
+php translate.php [translation target md file]
 ```
 If target is not spacified, all .md files are translate.
 
