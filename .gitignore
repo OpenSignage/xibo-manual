@@ -7,4 +7,5 @@ translate_api.key
 translate.php
 translate_with_glossary.php
 
+ai/config.php
 replace_word.php

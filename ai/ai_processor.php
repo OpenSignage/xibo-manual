@@ -5,23 +5,28 @@ require 'vendor/autoload.php';
 use Google\Cloud\DiscoveryEngine\V1\SearchServiceClient;
 use Google\Cloud\DiscoveryEngine\V1\SearchRequest;
 
-function queryVertexAIStreaming($userPrompt, $projectId, $location, $dataStoreId, $searchEngineId) {
+function queryVertexAIStreaming($userPrompt, $config) {
     $searchServiceClient = null;
     $stream = null;
 
     try {
         // APIクライアントの初期化
         $searchServiceClient = new SearchServiceClient([
-            'projectId' => $projectId,
-            'location' => $location,
+            'projectId' => $config['projectId'],
+            'location' => $config['location'],
         ]);
 
-        // プロンプトを組み込む
-        $systemPrompt = "あなたは顧客からの問い合わせに対応する優秀なサポート担当者です。以下の点に注意して、顧客からの質問に回答してください。\n\n* 丁寧な言葉遣いを心がける\n* 顧客の質問を正確に理解し、適切な回答を提供する\n* 必要に応じて、関連する情報や資料を提供する\n\n顧客からの質問：";
+        // プロンプトをファイルから読み込む
+        $systemPrompt = file_get_contents($config['promptFile']);
         $query = $systemPrompt . $userPrompt;
 
         // リクエストの作成
-        $servingConfig = $searchServiceClient->servingConfigName($projectId, $location, $dataStoreId, $searchEngineId);
+        $servingConfig = $searchServiceClient->servingConfigName(
+            $config['projectId'],
+            $config['location'],
+            $config['dataStoreId'],
+            $config['searchEngineId']
+        );
         $searchRequest = (new SearchRequest())
             ->setServingConfig($servingConfig)
             ->setQuery($query)
@@ -62,11 +67,9 @@ function queryVertexAIStreaming($userPrompt, $projectId, $location, $dataStoreId
 
 $userPrompt = $_POST['question'];
 
-$projectId = 'YOUR_PROJECT_ID';
-$location = 'global';
-$dataStoreId = 'YOUR_DATA_STORE_ID';
-$searchEngineId = 'YOUR_SEARCH_ENGINE_ID';
+// 設定ファイルを読み込む
+$config = require 'config.php';
 
-queryVertexAIStreaming($userPrompt, $projectId, $location, $dataStoreId, $searchEngineId);
+queryVertexAIStreaming($userPrompt, $config);
 
 ?>
