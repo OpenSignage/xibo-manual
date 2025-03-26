@@ -11,86 +11,76 @@
  * see <http://www.gnu.org/licenses/>.
  */
 
-require 'vendor/autoload.php'; // Composerのオートローダー
+// apikey.txt ファイルから API キーを読み込みます
+$apiKey = trim(file_get_contents('apikey.txt'));
 
-use Google\Cloud\Translate\V3\TranslationServiceClient;
-use Google\Cloud\Translate\V3\TranslateTextGlossaryConfig;
-
-// Google Cloud Translation API credentials
-$projectId = 'YOUR_PROJECT_ID'; // Replace with your Project ID
-$location = 'global'; // or e.g., 'us-central1'
-$glossaryId = 'YOUR_GLOSSARY_ID'; // Replace with your Glossary ID
-$glossaryUri = 'gs://YOUR_BUCKET_NAME/YOUR_GLOSSARY_FILE.csv'; // Replace with your Glossary URI.
-
-// Input and output directories
 $inputDir = 'source/en/';
 $outputDir = 'source/ja/';
 
-// Create output directory if it doesn't exist
+// 出力ディレクトリが存在しない場合は作成します
 if (!file_exists($outputDir)) {
-    mkdir($outputDir, 0755, true); // Create directory recursively
+    mkdir($outputDir, 0755, true);
 }
 
-// Get input file names from command line arguments
+// コマンドライン引数から入力ファイル名を取得します
 $inputFiles = $argv;
-array_shift($inputFiles); // Remove script name from arguments
+array_shift($inputFiles); // スクリプト名を除外
 
-// If no input file names are provided, use all .md files in the input directory
+// 入力ファイル名の指定がない場合は、source/en/ の全ての .md ファイルを対象とします
 if (empty($inputFiles)) {
-    $inputFiles = glob($inputDir . '*.md'); // Get all .md files from input directory
+    $inputFiles = glob($inputDir . '*.md');
 } else {
-    // Prepend input directory to the provided file names
+    // 指定されたファイル名に source/en/ ディレクトリを追加します
     foreach ($inputFiles as &$inputFile) {
-        $inputFile = $inputDir . $inputFile; // Add input directory to each file name
+        $inputFile = $inputDir . $inputFile;
     }
 }
 
-// Process each input file
+// 各入力ファイルに対して翻訳を実行します
 foreach ($inputFiles as $inputFile) {
-    // Read file content
-    $content = file_get_contents($inputFile); // Read content from the input file
+    // ファイルの内容を読み込みます
+    $content = file_get_contents($inputFile);
 
-    // Translate content using Google Cloud Translation API with glossary
-    $translatedContent = translateTextWithGlossary($content, $projectId, $location, $glossaryId, $glossaryUri); // Translate the content
+    // Google Cloud Translation API を使用して翻訳します
+    $translatedContent = translateText($content, $apiKey);
 
-    // Save translated content to the output directory with the same file name
-    $outputFilename = basename($inputFile); // Get the base file name
-    $outputFile = $outputDir . $outputFilename; // Create the output file path
-    file_put_contents($outputFile, $translatedContent); // Save the translated content to the output file
+    // 翻訳された内容を、source/ja/ に元のファイル名と同じ名前のファイルとして保存します
+    $outputFilename = basename($inputFile);
+    $outputFile = $outputDir . $outputFilename;
+    file_put_contents($outputFile, $translatedContent);
 
-    echo "Translated file '$inputFile' to '$outputFile'.\n"; // Print the translation result
+    echo "ファイル '$inputFile' を翻訳し、'$outputFile' に保存しました。\n";
 }
 
 /**
- * Translates text using Google Cloud Translation API with glossary.
+ * Google Cloud Translation API を使用してテキストを翻訳します。
  *
- * @param string $text The text to translate.
- * @param string $projectId The Google Cloud Project ID.
- * @param string $location The location for the API.
- * @param string $glossaryId The ID of the glossary.
- * @param string $glossaryUri The Cloud Storage URI of the glossary.
- * @return string The translated text.
+ * @param string $text 翻訳するテキスト
+ * @param string $apiKey API キー
+ * @return string 翻訳されたテキスト
  */
-function translateTextWithGlossary(string $text, string $projectId, string $location, string $glossaryId, string $glossaryUri): string
+function translateText(string $text, string $apiKey): string
 {
-    $translationServiceClient = new TranslationServiceClient();
-    $parent = $translationServiceClient->locationName($projectId, $location);
+    $url = 'https://translation.googleapis.com/language/translate/v2?key=' . $apiKey;
+    $data = [
+        'q' => $text,
+        'source' => 'en',
+        'target' => 'ja',
+        'format' => 'text'
+    ];
 
-    $glossary = $translationServiceClient->glossaryName($projectId, $location, $glossaryId);
-    $glossaryConfig = (new TranslateTextGlossaryConfig())
-        ->setGlossary($glossary);
-
-    $response = $translationServiceClient->translateText(
-        [
-            'parent' => $parent,
-            'contents' => [$text],
-            'mimeType' => 'text/plain',
-            'sourceLanguageCode' => 'en',
-            'targetLanguageCode' => 'ja',
-            'glossaryConfig' => $glossaryConfig,
+    $options = [
+        'http' => [
+            'header' => "Content-type: application/json\r\n",
+            'method' => 'POST',
+            'content' => json_encode($data)
         ]
-    );
+    ];
 
-    return $response->getGlossaryTranslations()[0]->getTranslatedText();
+    $context = stream_context_create($options);
+    $result = file_get_contents($url, false, $context);
+    $response = json_decode($result, true);
+
+    return $response['data']['translations'][0]['translatedText'];
 }
 ?>
