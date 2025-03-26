@@ -2,10 +2,9 @@
 .sync/
 output/
 
-desktop.ini
-translate_api.key
-translate.php
-translate_with_glossary.php
+apikey.txt
 
+ai/apiAccessKey.json
 ai/config.php
 replace_word.php
+translate_with_glossary.php
