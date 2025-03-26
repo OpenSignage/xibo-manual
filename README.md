@@ -44,6 +44,7 @@ Japanese translation is handled by Open Source Digital Signage Initiative.
 
 ** AI assistant
 
-** Search Engine
-https://programmablesearchengine.google.com/controlpanel/all
-
+** Google Search Engine
+You can search within the manual pages using the Google search engine.
+To use this function, you need to register your search site in the Google Search Console and obtain an ID.
+[Google Serch Console](https://programmablesearchengine.google.com/controlpanel/all)

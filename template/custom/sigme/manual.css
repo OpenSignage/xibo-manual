@@ -225,3 +225,20 @@ blockquote {
 #side-nav {
 	padding-top: 20px;
 }
+
+.gsc-control-cse {
+	background-color: #fff0 !important; 
+	border: none !important;
+	width: 300px !important;
+}
+
+.navbar-right {
+  float: right !important;
+  margin-right: -15px;
+}
+
+@media (min-width: 768px) {
+    .navbar-nav {
+        width: 90% !important;
+    }
+}
