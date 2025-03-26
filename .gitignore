@@ -2,7 +2,13 @@
 .sync/
 output/
 
+<<<<<<< HEAD
 apikey.txt
+=======
+desktop.ini
+apikey.txt
+translate_with_glossary.php
+>>>>>>> eea8e8afa02204a143f640e47df04a3506803633
 
 ai/apiAccessKey.json
 ai/config.php
