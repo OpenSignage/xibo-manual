@@ -6,7 +6,6 @@ function extractTextFromHtml($htmlFilePath, $targetClass) {
     $xpath = new DOMXPath($dom);
     $text = '';
 
-    // 指定されたclassを持つdiv要素内のテキストを抽出
     $nodes = $xpath->query('//div[contains(@class, "' . $targetClass . '")]//*[not(self::script or self::style)]/text()');
     foreach ($nodes as $node) {
         $text .= trim($node->nodeValue) . "\n";
@@ -15,8 +14,8 @@ function extractTextFromHtml($htmlFilePath, $targetClass) {
 }
 
 function processHtmlFiles($directoryPath, $targetClass) {
-    $fileData = [];
     $files = scandir($directoryPath);
+    $output = '';
 
     foreach ($files as $file) {
         if ($file === '.' || $file === '..') {
@@ -26,49 +25,38 @@ function processHtmlFiles($directoryPath, $targetClass) {
         $filePath = $directoryPath . '/' . $file;
 
         if (pathinfo($filePath, PATHINFO_EXTENSION) === 'html') {
-print_r($filePath);
             $extractedText = extractTextFromHtml($filePath, $targetClass);
-            // テキストを整形
             $formattedText = formatText($extractedText);
             $fileKey = pathinfo($file, PATHINFO_FILENAME);
-            $fileData[] = [
+
+            // NDJSON形式で出力文字列を生成
+            $jsonLine = json_encode([
                 'id' => $fileKey,
                 'content' => $formattedText,
                 'page_url' => $filePath,
-            ];
+            ], JSON_UNESCAPED_UNICODE) . "\n";
+            $output .= $jsonLine;
         }
     }
-    return $fileData;
+    return $output;
 }
 
-// テキストを整形する関数
 function formatText($text) {
-    // 不要な空白や改行を削除
     $text = preg_replace('/\s+/', ' ', $text);
-    // 前後の空白を削除
     $text = trim($text);
-    // その他の不要な文字を削除（必要に応じて追加）
     $text = str_replace(["\t", "\r", "\n", "\o", "\x0B"], '', $text);
     return $text;
 }
 
 $sourceDirectory = 'output/ja';
-$aiDirectory = 'ai';
-$outputFile = $aiDirectory . '/learning.json';
+$outputFile = 'learning_data.json'; // 出力ファイル名を変更
+$targetClass = 'col-md-7'; // 抽出対象のclass名を指定
 
-// 抽出対象のclass名を指定
-$targetClass = 'col-md-7';
 
-// 出力先のディレクトリが存在しない場合は作成
-if (!is_dir($aiDirectory)) {
-    mkdir($aiDirectory, 0755, true);
-}
+$ndjsonOutput = processHtmlFiles($sourceDirectory, $targetClass);
 
-$extractedData = processHtmlFiles($sourceDirectory, $targetClass);
-
-// 抽出したデータをJSON形式でファイルに書き込み
-$jsonData = json_encode($extractedData, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
-file_put_contents($outputFile, $jsonData);
+// NDJSON形式のデータをファイルに書き込み
+file_put_contents($outputFile, $ndjsonOutput);
 
 echo "データが {$outputFile} に保存されました。\n";
 

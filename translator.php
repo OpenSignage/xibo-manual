@@ -1,0 +1,86 @@
+<?php
+/*
+ * Copyright (C) 2025 Open Source Digital Signage Initiative.
+ *
+ * You can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * any later version.
+ *
+ * You should have received a copy of the GNU Affero General Public License.
+ * see <http://www.gnu.org/licenses/>.
+ */
+
+// apikey.txt ファイルから API キーを読み込みます
+$apiKey = trim(file_get_contents('apikey.txt'));
+
+$inputDir = 'source/en/';
+$outputDir = 'source/ja/';
+
+// 出力ディレクトリが存在しない場合は作成します
+if (!file_exists($outputDir)) {
+    mkdir($outputDir, 0755, true);
+}
+
+// コマンドライン引数から入力ファイル名を取得します
+$inputFiles = $argv;
+array_shift($inputFiles); // スクリプト名を除外
+
+// 入力ファイル名の指定がない場合は、source/en/ の全ての .md ファイルを対象とします
+if (empty($inputFiles)) {
+    $inputFiles = glob($inputDir . '*.md');
+} else {
+    // 指定されたファイル名に source/en/ ディレクトリを追加します
+    foreach ($inputFiles as &$inputFile) {
+        $inputFile = $inputDir . $inputFile;
+    }
+}
+
+// 各入力ファイルに対して翻訳を実行します
+foreach ($inputFiles as $inputFile) {
+    // ファイルの内容を読み込みます
+    $content = file_get_contents($inputFile);
+
+    // Google Cloud Translation API を使用して翻訳します
+    $translatedContent = translateText($content, $apiKey);
+
+    // 翻訳された内容を、source/ja/ に元のファイル名と同じ名前のファイルとして保存します
+    $outputFilename = basename($inputFile);
+    $outputFile = $outputDir . $outputFilename;
+    file_put_contents($outputFile, $translatedContent);
+
+    echo "ファイル '$inputFile' を翻訳し、'$outputFile' に保存しました。\n";
+}
+
+/**
+ * Google Cloud Translation API を使用してテキストを翻訳します。
+ *
+ * @param string $text 翻訳するテキスト
+ * @param string $apiKey API キー
+ * @return string 翻訳されたテキスト
+ */
+function translateText(string $text, string $apiKey): string
+{
+    $url = 'https://translation.googleapis.com/language/translate/v2?key=' . $apiKey;
+    $data = [
+        'q' => $text,
+        'source' => 'en',
+        'target' => 'ja',
+        'format' => 'text'
+    ];
+
+    $options = [
+        'http' => [
+            'header' => "Content-type: application/json\r\n",
+            'method' => 'POST',
+            'content' => json_encode($data)
+        ]
+    ];
+
+    $context = stream_context_create($options);
+    $result = file_get_contents($url, false, $context);
+    $response = json_decode($result, true);
+
+    return $response['data']['translations'][0]['translatedText'];
+}
+?>

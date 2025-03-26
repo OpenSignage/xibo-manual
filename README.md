@@ -41,3 +41,9 @@ If target is not spacified, all .md files are translate.
 We are using Google translate API, you need to get API KEY to run this program.
 
 Japanese translation is handled by Open Source Digital Signage Initiative.
+
+** AI assistant
+
+** Search Engine
+https://programmablesearchengine.google.com/controlpanel/all
+
