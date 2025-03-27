@@ -53,3 +53,6 @@ To use this function, you need to register your search site.
 t takes a significant amount of time for Google to crawl the manual pages you host on your site.
 To make your site searchable as quickly as possible, we recommend that you register the URL of your manual page in the [Google Search Console](https://search.google.com/search-console).
 
+## TODO
+1. Support <feat> and <video> tag in manual.
+1. Support translation dictionary.
