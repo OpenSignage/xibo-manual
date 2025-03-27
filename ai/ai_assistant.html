@@ -2,40 +2,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="ai_assistant.css">
     <title>AIアシスタント</title>
-    <style>
-        body {
-            font-family: sans-serif;
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-            margin: 0;
-        }
-        #result-container {
-            flex-grow: 1;
-            overflow-y: scroll;
-            padding: 10px;
-            border: 1px solid #ccc;
-        }
-        #input-container {
-            padding: 10px;
-            border-top: 1px solid #ccc;
-            display: flex;
-            position: sticky;
-            bottom: 0;
-            background-color: white;
-        }
-        #prompt-input {
-            flex-grow: 1;
-            padding: 5px;
-            /* 追加: 複数行入力に対応するための設定 */
-            resize: vertical; /* 縦方向にサイズ変更可能 */
-            height: 100px; /* 初期の高さを設定 */
-        }
-        #send-button {
-            padding: 5px 10px;
-        }
-    </style>
 </head>
 <body>
     <div id="result-container">
@@ -56,11 +24,14 @@
             promptInput.value = '';
 
             const questionDiv = document.createElement('div');
-            questionDiv.textContent = "質問: " + prompt;
+            questionDiv.className = "question";
+            questionDiv.textContent = prompt;
+            questionDiv.style.whiteSpace = "pre-wrap"; 
             resultContainer.appendChild(questionDiv);
 
             const answerDiv = document.createElement('div');
-            answerDiv.textContent = "回答: ";
+            answerDiv.className = "answer";
+            answerDiv.textContent = "";
             resultContainer.appendChild(answerDiv);
 
             resultContainer.scrollTop = resultContainer.scrollHeight;
