@@ -42,9 +42,14 @@ We are using Google translate API, you need to get API KEY to run this program.
 
 Japanese translation is handled by Open Source Digital Signage Initiative.
 
-** AI assistant
+## AI assistant (Custom function)
 
-** Google Search Engine
-You can search within the manual pages using the Google search engine.
-To use this function, you need to register your search site in the Google Search Console and obtain an ID.
-[Google Serch Console](https://programmablesearchengine.google.com/controlpanel/all)
+## Google Search Engine (Custom function)
+You can search within the manual pages using the Google programmable search engine.
+To use this function, you need to register your search site.
+[Google Programmable Search Engine](https://programmablesearchengine.google.com)
+
+### Google Search Console
+t takes a significant amount of time for Google to crawl the manual pages you host on your site.
+To make your site searchable as quickly as possible, we recommend that you register the URL of your manual page in the [Google Search Console](https://search.google.com/search-console).
+
