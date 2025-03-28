@@ -1,0 +1,121 @@
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="assistantStyle.css">
+    <title>AIアシスタント</title>
+</head>
+<body>
+    <div id="result-container">
+    </div>
+    <div id="input-container">
+        <textarea id="prompt-input" placeholder="質問を入力してください"></textarea>
+        <button id="send-button">送信</button>
+    </div>
+
+    <script>
+        // ====== Initial Setup ======
+        // Get and store HTML elements
+        const resultContainer = document.getElementById('result-container');
+        const promptInput = document.getElementById('prompt-input');
+        const sendButton = document.getElementById('send-button');
+
+        // Disable send button initially (since there is no input)
+        sendButton.disabled = true;
+
+        // ====== Textarea Auto-resize ======
+        // Function to automatically adjust the height of the input area based on content
+        function autoResizeTextarea() {
+            // Reset height first for accurate calculation
+            promptInput.style.height = 'auto';
+            // Set height based on actual content height (scrollHeight)
+            promptInput.style.height = promptInput.scrollHeight + 'px';
+        }
+
+        // Set initial size on page load
+        autoResizeTextarea();
+
+        // ====== Event Listeners ======
+        // Handle input field content changes
+        promptInput.addEventListener('input', () => {
+            // Disable button if input is empty or only whitespace, otherwise enable it
+            sendButton.disabled = promptInput.value.trim() === '';
+            // Adjust height automatically based on input content
+            autoResizeTextarea();
+        });
+
+        // ====== Send Button Click Handler ======
+        sendButton.addEventListener('click', () => {
+            // Get input content and remove whitespace from both ends
+            const prompt = promptInput.value.trim();
+            
+            // Exit if input is empty
+            if (prompt === '') {
+                return; // Don't send if there's no input
+            }
+            
+            // Clear input field and reset to initial size
+            promptInput.value = '';
+            promptInput.style.height = '40px'; // Reset to minimum height
+            
+            // Disable send button since input is now empty
+            sendButton.disabled = true;
+
+            // ====== Display User Question ======
+            // Create element to display user's question
+            const questionDiv = document.createElement('div');
+            questionDiv.className = "question";
+            questionDiv.textContent = prompt;
+            resultContainer.appendChild(questionDiv);
+
+            // ====== Prepare AI Response Element ======
+            // Create empty element for AI's answer
+            const answerDiv = document.createElement('div');
+            answerDiv.className = "answer";
+            answerDiv.textContent = "";
+            resultContainer.appendChild(answerDiv);
+
+            // Scroll to ensure latest message is visible
+            resultContainer.scrollTop = resultContainer.scrollHeight;
+
+            // ====== Server Communication ======
+            // Send user's question to server
+            fetch('test.php', {
+                method: 'POST', // Send data using POST method
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded', // Form data format
+                },
+                body: `prompt=${encodeURIComponent(prompt)}`, // Encode question content
+            })
+            .then(response => {
+                // Check if server response is normal
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                // Set up to receive streaming response
+                const reader = response.body.getReader();
+                // Start recursive function to read data
+                return reader.read().then(function processResult({ done, value }) {
+                    // End when all data is received
+                    if (done) {
+                        return;
+                    }
+                    // Decode received data to text
+                    const text = new TextDecoder().decode(value);
+                    // Add AI response to display
+                    answerDiv.textContent += text;
+                    // Adjust scroll position to show new text
+                    resultContainer.scrollTop = resultContainer.scrollHeight;
+                    // Read next data chunk
+                    return reader.read().then(processResult);
+                });
+            })
+            .catch(error => {
+                // Error handling
+                console.error('There has been a problem with your fetch operation:', error);
+                answerDiv.textContent += "エラーが発生しました。";
+            });
+        });
+    </script>
+</body>
+</html>

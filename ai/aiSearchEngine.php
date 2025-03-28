@@ -76,6 +76,11 @@ function queryVertexAIStreaming($userPrompt, $config) {
     }
 }
 
+putenv('GOOGLE_APPLICATION_CREDENTIALS="apiAccessKey.json"');
+
+// 設定された環境変数を取得する例
+$credentials = getenv("GOOGLE_APPLICATION_CREDENTIALS");
+echo "GOOGLE_APPLICATION_CREDENTIALS: " . $credentials . "\n";
 $userPrompt = $_POST['question'];
 
 // 設定ファイルを読み込む

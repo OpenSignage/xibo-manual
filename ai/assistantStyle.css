@@ -1,0 +1,115 @@
+body {
+    font-family: sans-serif;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    margin: 0;
+}
+
+#result-container {
+    flex-grow: 1;
+    overflow-y: scroll;
+    margin-bottom: 50px; /* 入力コンテナの高さ + パディング分 */
+    padding: 10px;
+    border: 1px solid #ccc;
+}
+
+#input-container {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0; /* 右端も固定 */
+    width: auto; /* 幅を自動に設定 */
+    padding: 10px;
+    border-top: 1px solid #ccc;
+    background-color: white;
+    box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.1);
+    display: flex;
+    align-items: center;
+    box-sizing: border-box; /* パディングをボックスサイズに含める */
+}
+
+#prompt-input {
+    font-size: 14px;
+    min-height: 40px;
+    max-height: 200px;
+    resize: none;
+    overflow-y: hidden;
+    box-sizing: border-box;
+    flex: 1; /* 利用可能なスペースをすべて使用 */
+    width: auto; /* 固定幅を削除 */
+    padding: 5px;
+}
+
+#send-button {
+    height: 30px;
+    padding: 4px 12px;
+    font-size: 14px;
+    margin-left: 10px; /* 送信ボタンの左側にスペースを追加 */
+    flex-shrink: 0; /* ボタンサイズの縮小を防止 */
+    background-color: #e6f7ff; /* 薄いブルー */
+    color: #0066cc; /* ダークブルー */
+    border: 1px solid #b3d9ff;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+/* 送信ボタンの無効状態のスタイル */
+#send-button:disabled {
+    background-color: #cccccc;
+    color: #666666;
+    cursor: not-allowed;
+}
+
+/* ホバー時のスタイル */
+#send-button:hover:not(:disabled) {
+    background-color: #cce7ff; /* さらに濃い薄いブルー */
+}
+
+.question {
+    position: relative;
+    background: #d7ebfe;
+    margin-left: 20px;
+    margin-bottom: 10px;
+    padding: 5px 10px 5px 10px;
+    white-space: pre-wrap; /* 入力時の改行を保持 */
+}
+
+.question:after {
+    left: 100%;
+    top: 50%;
+    border: solid transparent;
+    content: "";
+    height: 0;
+    width: 0;
+    position: absolute;
+    pointer-events: none;
+    border-color: rgba(201, 213, 143, 0);
+    border-left-color: #d7ebfe; 
+    border-width: 10px;
+    margin-top: -10px;
+}
+
+.answer {
+    position: relative;
+    background: #eaf7c1;
+    margin-right: 20px;
+    margin-bottom: 20px;
+    padding: 5px 10px 5px 10px;
+}
+
+.answer:after {
+    right: 100%;
+    top: 50%;
+    border: solid transparent;
+    content: "";
+    height: 0;
+    width: 0;
+    position: absolute;
+    pointer-events: none;
+    border-color: rgba(234, 247, 193, 0);
+    border-right-color: #eaf7c1;
+    border-width: 10px;
+    margin-top: -10px;
+}
+
