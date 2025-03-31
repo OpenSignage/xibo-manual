@@ -1,5 +1,3 @@
-[![Github All Releases](https://img.shields.io/github/downloads/xibosignage/xibo-cms/total.svg)]()
-
 # Introduction
 Welcome to the Xibo Manual.
 
