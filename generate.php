@@ -26,7 +26,8 @@ $manual->build('', 'output/');
 // Tar up the images in `output/en/img`
 // shell_exec('cd output; tar -czvf images.tar.gz en/img');
 
-// Set up ai assistant & processor
+// Set up ai assistant & processor, i18n related files
 if ($template === 'sigme') {
     shell_exec('cp -r ai/ output/');
+    shell_exec('cp -r locale/ output/');
 }
