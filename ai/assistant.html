@@ -6,6 +6,10 @@
     <title>AIアシスタント</title>
 </head>
 <body>
+    <div id="control-container">
+        <button id="new-conversation-button">新規</button>
+        <button id="close-button">終了</button>
+    </div>
     <div id="result-container">
     </div>
     <div id="input-container">
@@ -19,6 +23,11 @@
         const resultContainer = document.getElementById('result-container');
         const promptInput = document.getElementById('prompt-input');
         const sendButton = document.getElementById('send-button');
+        const newConversationButton = document.getElementById('new-conversation-button');
+        const closeButton = document.getElementById('close-button');
+        
+        // Variable to store conversation history
+        let conversationHistory = [];
 
         // Disable send button initially (since there is no input)
         sendButton.disabled = true;
@@ -42,6 +51,19 @@
             sendButton.disabled = promptInput.value.trim() === '';
             // Adjust height automatically based on input content
             autoResizeTextarea();
+        });
+
+        // Event listener for the New button
+        newConversationButton.addEventListener('click', () => {
+            // Clear conversation history
+            conversationHistory = [];
+            // Clear display
+            resultContainer.innerHTML = '';
+        });
+
+        // Event listener for the Close button
+        closeButton.addEventListener('click', () => {
+            window.close();
         });
 
         // ====== Send Button Click Handler ======
@@ -78,42 +100,71 @@
             // Scroll to ensure latest message is visible
             resultContainer.scrollTop = resultContainer.scrollHeight;
 
+            // Add user question to conversation history
+            conversationHistory.push({ role: 'user', content: prompt });
+
             // ====== Server Communication ======
             // Send user's question to server
-            fetch('test.php', {
+            fetch('aiSearchEngine.php', {
                 method: 'POST', // Send data using POST method
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded', // Form data format
                 },
-                body: `prompt=${encodeURIComponent(prompt)}`, // Encode question content
+                body: `question=${encodeURIComponent(prompt)}&history=${encodeURIComponent(JSON.stringify(conversationHistory))}`, // Encode question content and history
+
             })
             .then(response => {
                 // Check if server response is normal
                 if (!response.ok) {
                     throw new Error('Network response was not ok');
                 }
-                // Set up to receive streaming response
+                // Set up event source for server-sent events
+                const decoder = new TextDecoder();
                 const reader = response.body.getReader();
-                // Start recursive function to read data
-                return reader.read().then(function processResult({ done, value }) {
-                    // End when all data is received
+                
+                // Process the streaming response
+                reader.read().then(function processText({ done, value }) {
                     if (done) {
                         return;
                     }
-                    // Decode received data to text
-                    const text = new TextDecoder().decode(value);
-                    // Add AI response to display
-                    answerDiv.textContent += text;
-                    // Adjust scroll position to show new text
+                    
+                    try {
+                        const chunk = decoder.decode(value, { stream: true });
+                        const lines = chunk.split('\n\n');
+                        for (const line of lines) {
+                            if (line.startsWith('data: ')) {
+                                const data = JSON.parse(line.substring(6));
+                                
+                                if (data.error) {
+                                    answerDiv.textContent += `Error: ${data.error}`;
+alert(data.error);
+                                    answerDiv.classList.add('error');
+                                } else if (data.answer) {
+                                    answerDiv.textContent += data.answer;
+                                    
+                                    // Add AI response to conversation history
+                                    if (!conversationHistory.find(msg => msg.role === 'assistant' && msg.content === data.answer)) {
+                                        conversationHistory.push({ role: 'assistant', content: data.answer });
+                                    }
+                                }
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Parse error:', error);
+                    }
+                    
+                    // Scroll to bottom to show latest response
                     resultContainer.scrollTop = resultContainer.scrollHeight;
-                    // Read next data chunk
-                    return reader.read().then(processResult);
+                    
+                    // Continue reading
+                    return reader.read().then(processText);
                 });
             })
             .catch(error => {
                 // Error handling
                 console.error('There has been a problem with your fetch operation:', error);
-                answerDiv.textContent += "エラーが発生しました。";
+                answerDiv.textContent += "An error has occurred.";
+                answerDiv.classList.add('error');
             });
         });
     </script>

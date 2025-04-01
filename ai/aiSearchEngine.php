@@ -13,23 +13,59 @@
 
 require 'vendor/autoload.php';
 
-use Google\Cloud\DiscoveryEngine\V1\SearchServiceClient;
 use Google\Cloud\DiscoveryEngine\V1\SearchRequest;
 
-function queryVertexAIStreaming($userPrompt, $config) {
+// 認証ファイルのパスをserviceAccountPath.txtから読み込む
+$serviceAccountPathFile = __DIR__ . '/serviceAccountPath.txt';
+if (!file_exists($serviceAccountPathFile)) {
+    die('サービスアカウントパスファイルが見つかりません: ' . $serviceAccountPathFile);
+}
+
+$credentialsPath = trim(file_get_contents($serviceAccountPathFile));
+if (empty($credentialsPath)) {
+    die('サービスアカウントパスファイルが空です');
+}
+
+putenv('GOOGLE_APPLICATION_CREDENTIALS=' . $credentialsPath);
+
+// ファイルが存在するか確認
+if (!file_exists($credentialsPath)) {
+    die('認証ファイルが見つかりません: ' . $credentialsPath);
+}
+
+function queryVertexAIStreaming($userPrompt, $conversationHistory, $config) {
     $searchServiceClient = null;
     $stream = null;
 
     try {
         // APIクライアントの初期化
-        $searchServiceClient = new SearchServiceClient([
+        $searchServiceClient = new Google\Cloud\DiscoveryEngine\V1\Client\SearchServiceClient([
+            'credentials' => $credentialsPath,
             'projectId' => $config['projectId'],
             'location' => $config['location'],
         ]);
 
+//        $searchServiceClient = new SearchServiceClient([
+//            'projectId' => $config['projectId'],
+//            'location' => $config['location'],
+//        ]);
+
         // プロンプトをファイルから読み込む
         $systemPrompt = file_get_contents($config['promptFile']);
-        $query = $systemPrompt . $userPrompt;
+        
+        // 会話履歴がある場合は、それを含めたプロンプトを構築
+        $fullPrompt = $systemPrompt;
+        
+        if (!empty($conversationHistory)) {
+            $historyText = "これまでの会話履歴:\n";
+            foreach ($conversationHistory as $message) {
+                $role = $message['role'] === 'user' ? 'ユーザー' : 'アシスタント';
+                $historyText .= "{$role}: {$message['content']}\n";
+            }
+            $fullPrompt .= $historyText . "\n現在の質問: " . $userPrompt;
+        } else {
+            $fullPrompt .= $userPrompt;
+        }
 
         // リクエストの作成
         $servingConfig = $searchServiceClient->servingConfigName(
@@ -40,7 +76,7 @@ function queryVertexAIStreaming($userPrompt, $config) {
         );
         $searchRequest = (new SearchRequest())
             ->setServingConfig($servingConfig)
-            ->setQuery($query)
+            ->setQuery($fullPrompt)
             ->setOffset(0)
             ->setPageSize(10);
 
@@ -76,16 +112,21 @@ function queryVertexAIStreaming($userPrompt, $config) {
     }
 }
 
-putenv('GOOGLE_APPLICATION_CREDENTIALS="apiAccessKey.json"');
 
-// 設定された環境変数を取得する例
-$credentials = getenv("GOOGLE_APPLICATION_CREDENTIALS");
-echo "GOOGLE_APPLICATION_CREDENTIALS: " . $credentials . "\n";
+//$envData = file_get_contents("/home/xs118061/OpenSignage/cloudsignage-449313-c2028de75f83.json");
+//echo "data: " . $envData . "\n\n";
+
 $userPrompt = $_POST['question'];
+
+// 会話履歴を取得
+$conversationHistory = [];
+if (isset($_POST['history'])) {
+    $conversationHistory = json_decode($_POST['history'], true);
+}
 
 // 設定ファイルを読み込む
 $config = require 'config.php';
 
-queryVertexAIStreaming($userPrompt, $config);
+queryVertexAIStreaming($userPrompt, $conversationHistory, $config);
 
 ?>

@@ -252,8 +252,8 @@ class ManualGenerator
         // Table of Header index
         //   we want to create contents index at the right side bar
         $tocString = '';
-//        $tocString = $this->generateTOC($string, $minHeadingLevel, $maxHeadingLevel);
-$minHeadingLevel = 1;
+        $minHeadingLevel = 1;
+
         $tocString = $this->generateTOC($string, $minHeadingLevel, $maxHeadingLevel);
         $string = str_replace('[[TOC]]', $tocString, $string);
 

@@ -27,4 +27,6 @@ $manual->build('', 'output/');
 // shell_exec('cd output; tar -czvf images.tar.gz en/img');
 
 // Set up ai assistant & processor
-shell_exec('cp -r ai/ output/');
+if ($template === 'sigme') {
+    shell_exec('cp -r ai/ output/');
+}

@@ -4,12 +4,48 @@ body {
     flex-direction: column;
     height: 100vh;
     margin: 0;
+    font-size: 14px;
+}
+
+#control-container {
+    display: flex;
+    justify-content: flex-end;
+    padding: 10px;
+    background-color: #f5f5f5;
+    border-bottom: 1px solid #ddd;
+}
+
+#control-container button {
+    margin-left: 10px;
+    padding: 5px 15px;
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+#new-conversation-button {
+    background-color: #e6f7ff;
+    color: #0066cc;
+    border: 1px solid #b3d9ff;
+}
+
+#new-conversation-button:hover {
+    background-color: #cce7ff;
+}
+
+#close-button {
+    background-color: #ffe6e6;
+    color: #cc0000;
+    border: 1px solid #ffb3b3;
+}
+
+#close-button:hover {
+    background-color: #ffcccc;
 }
 
 #result-container {
     flex-grow: 1;
     overflow-y: scroll;
-    margin-bottom: 50px; /* 入力コンテナの高さ + パディング分 */
+    margin-bottom: 50px; /* Height of input container + padding */
     padding: 10px;
     border: 1px solid #ccc;
 }
@@ -18,52 +54,50 @@ body {
     position: fixed;
     bottom: 0;
     left: 0;
-    right: 0; /* 右端も固定 */
-    width: auto; /* 幅を自動に設定 */
+    right: 0; /* Fixed to right edge */
+    width: auto; /* Auto width */
     padding: 10px;
     border-top: 1px solid #ccc;
     background-color: white;
     box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.1);
     display: flex;
     align-items: center;
-    box-sizing: border-box; /* パディングをボックスサイズに含める */
+    box-sizing: border-box; /* Include padding in box size */
 }
 
 #prompt-input {
-    font-size: 14px;
     min-height: 40px;
     max-height: 200px;
     resize: none;
     overflow-y: hidden;
     box-sizing: border-box;
-    flex: 1; /* 利用可能なスペースをすべて使用 */
-    width: auto; /* 固定幅を削除 */
+    flex: 1; /* Use all available space */
+    width: auto; /* Remove fixed width */
     padding: 5px;
 }
 
 #send-button {
     height: 30px;
     padding: 4px 12px;
-    font-size: 14px;
-    margin-left: 10px; /* 送信ボタンの左側にスペースを追加 */
-    flex-shrink: 0; /* ボタンサイズの縮小を防止 */
-    background-color: #e6f7ff; /* 薄いブルー */
-    color: #0066cc; /* ダークブルー */
+    margin-left: 10px; /* Add space to the left of send button */
+    flex-shrink: 0; /* Prevent button size from shrinking */
+    background-color: #e6f7ff; /* Light blue */
+    color: #0066cc; /* Dark blue */
     border: 1px solid #b3d9ff;
     border-radius: 4px;
     cursor: pointer;
 }
 
-/* 送信ボタンの無効状態のスタイル */
+/* Style for disabled send button */
 #send-button:disabled {
     background-color: #cccccc;
     color: #666666;
     cursor: not-allowed;
 }
 
-/* ホバー時のスタイル */
+/* Style for hover */
 #send-button:hover:not(:disabled) {
-    background-color: #cce7ff; /* さらに濃い薄いブルー */
+    background-color: #cce7ff; /* Slightly darker light blue */
 }
 
 .question {
@@ -72,7 +106,7 @@ body {
     margin-left: 20px;
     margin-bottom: 10px;
     padding: 5px 10px 5px 10px;
-    white-space: pre-wrap; /* 入力時の改行を保持 */
+    white-space: pre-wrap; /* Preserve input line breaks */
 }
 
 .question:after {
@@ -111,5 +145,10 @@ body {
     border-right-color: #eaf7c1;
     border-width: 10px;
     margin-top: -10px;
+}
+
+/* Error message style */
+.error {
+    background-color: #ffebee; /* Light red */
 }
 
