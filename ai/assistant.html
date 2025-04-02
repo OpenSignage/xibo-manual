@@ -90,12 +90,12 @@
             questionDiv.textContent = prompt;
             resultContainer.appendChild(questionDiv);
 
-            // ====== Prepare AI Response Element ======
-            // Create empty element for AI's answer
-            const answerDiv = document.createElement('div');
-            answerDiv.className = "answer";
-            answerDiv.textContent = "";
-            resultContainer.appendChild(answerDiv);
+            // ====== 検索中メッセージ表示 ======
+            // 検索中であることを示すステータスメッセージを表示
+            const searchingDiv = document.createElement('div');
+            searchingDiv.className = "status-message";
+            searchingDiv.textContent = "検索中...";
+            resultContainer.appendChild(searchingDiv);
 
             // Scroll to ensure latest message is visible
             resultContainer.scrollTop = resultContainer.scrollHeight;
@@ -108,65 +108,169 @@
             fetch('aiSearchEngine.php', {
                 method: 'POST', // Send data using POST method
                 headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded', // Form data format
+                    'Content-Type': 'application/json', // JSONデータ形式に変更
                 },
-                body: `question=${encodeURIComponent(prompt)}&history=${encodeURIComponent(JSON.stringify(conversationHistory))}`, // Encode question content and history
-
+                body: JSON.stringify({
+                    question: prompt,
+                    history: conversationHistory
+                }), // JSONとしてデータを送信
             })
             .then(response => {
                 // Check if server response is normal
                 if (!response.ok) {
                     throw new Error('Network response was not ok');
                 }
-                // Set up event source for server-sent events
-                const decoder = new TextDecoder();
-                const reader = response.body.getReader();
                 
-                // Process the streaming response
-                reader.read().then(function processText({ done, value }) {
-                    if (done) {
-                        return;
-                    }
+                // EventSourceを使用せず、SSEを手動で処理
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+                
+                // 結果表示用の要素
+                const sourcesDiv = document.createElement('div');
+                sourcesDiv.className = "sources";
+                
+                // ストリーミングデータの処理
+                function processStream({ done, value }) {
+                    if (done) return;
                     
-                    try {
-                        const chunk = decoder.decode(value, { stream: true });
-                        const lines = chunk.split('\n\n');
-                        for (const line of lines) {
-                            if (line.startsWith('data: ')) {
-                                const data = JSON.parse(line.substring(6));
-                                
-                                if (data.error) {
-                                    answerDiv.textContent += `Error: ${data.error}`;
-alert(data.error);
-                                    answerDiv.classList.add('error');
-                                } else if (data.answer) {
-                                    answerDiv.textContent += data.answer;
-                                    
-                                    // Add AI response to conversation history
-                                    if (!conversationHistory.find(msg => msg.role === 'assistant' && msg.content === data.answer)) {
-                                        conversationHistory.push({ role: 'assistant', content: data.answer });
-                                    }
+                    buffer += decoder.decode(value, { stream: true });
+                    
+                    // イベントごとに処理（イベントは\n\nで区切られる）
+                    const events = buffer.split('\n\n');
+                    buffer = events.pop(); // 最後の不完全なイベントを次の処理用に保持
+                    
+                    events.forEach(event => {
+                        const lines = event.split('\n');
+                        let eventType = null;
+                        let data = null;
+                        
+                        // イベントタイプとデータを抽出
+                        lines.forEach(line => {
+                            if (line.startsWith('event: ')) {
+                                eventType = line.substring(7);
+                            } else if (line.startsWith('data: ')) {
+                                try {
+                                    data = JSON.parse(line.substring(6));
+                                } catch (e) {
+                                    console.error('JSONパースエラー:', e, line.substring(6));
                                 }
                             }
+                        });
+                        
+                        // イベントタイプに応じた処理
+                        if (eventType && data) {
+                            if (eventType === 'answer') {
+                                // デバッグ情報を出力
+                                console.log('受信したデータ:', data);
+                                
+                                // 新しい回答ごとに新しいdiv要素を作成
+                                const newAnswerDiv = document.createElement('div');
+                                newAnswerDiv.className = "answer";
+                                newAnswerDiv.innerHTML = data.answer || '';
+                                resultContainer.appendChild(newAnswerDiv);
+                                
+                                // デバッグ用にURLのプロパティを確認
+                                console.log('URL情報:', data.page_url);
+                                
+                                // ソース情報の表示（URLがあれば）
+                                if (data.page_url && data.page_url.trim() !== '') {
+                                    console.log('URLあり:', data.page_url);
+                                    
+                                    // 回答の直後に表示するための要素
+                                    const sourcesDiv = document.createElement('div');
+                                    sourcesDiv.className = "sources";
+                                    
+                                    const sourceLink = document.createElement('a');
+                                    sourceLink.href = data.page_url;
+                                    sourceLink.target = '_blank';
+                                    sourceLink.textContent = '出典: ' + data.page_url;
+                                    sourcesDiv.appendChild(sourceLink);
+                                    
+                                    // 回答の直後に挿入
+                                    resultContainer.insertBefore(sourcesDiv, newAnswerDiv.nextSibling);
+                                } else {
+                                    console.log('URLなし');
+                                }
+                                
+                                // 会話履歴に追加
+                                if (!conversationHistory.find(msg => 
+                                    msg.role === 'assistant' && msg.content === data.answer)) {
+                                    conversationHistory.push({ 
+                                        role: 'assistant', 
+                                        content: data.answer 
+                                    });
+                                }
+                            } else if (eventType === 'status') {
+                                // ステータスメッセージの表示
+                                if (data.status === 'completed') {
+                                    console.log('検索完了');
+                                    // 検索中メッセージを削除
+                                    const statusElements = document.querySelectorAll('.status-message');
+                                    statusElements.forEach(element => {
+                                        if (element.textContent === '検索中...') {
+                                            element.remove();
+                                        }
+                                    });
+                                } else if (data.message) {
+                                    // 表示しないメッセージのリスト
+                                    const ignoredMessages = [
+                                        '検索クエリ処理中...',
+                                        'Google APIに接続中...',
+                                        '検索実行中...',
+                                        '検索結果処理中...'
+                                    ];
+                                    
+                                    // 無視するメッセージリストにないものだけ表示
+                                    if (!ignoredMessages.includes(data.message)) {
+                                        const statusDiv = document.createElement('div');
+                                        statusDiv.className = "status-message";
+                                        statusDiv.innerHTML = data.message;
+                                        resultContainer.appendChild(statusDiv);
+                                    } else {
+                                        // デバッグ用に非表示メッセージをコンソールに出力
+                                        console.log('非表示メッセージ:', data.message);
+                                    }
+                                }
+                            } else if (eventType === 'error') {
+                                // エラーメッセージの表示
+                                const errorDiv = document.createElement('div');
+                                errorDiv.className = "answer error";
+                                errorDiv.innerHTML = data.error || 'エラーが発生しました';
+                                resultContainer.appendChild(errorDiv);
+                            } else if (eventType === 'summary') {
+                                // 検索結果の概要情報表示
+                                if (data.status === 'results_summary') {
+                                    const summaryDiv = document.createElement('div');
+                                    summaryDiv.className = "search-summary";
+                                    summaryDiv.innerHTML = data.message;
+                                    resultContainer.appendChild(summaryDiv);
+                                }
+                            }
+                            
+                            // スクロールして最新の応答を表示
+                            resultContainer.scrollTop = resultContainer.scrollHeight;
                         }
-                    } catch (error) {
-                        console.error('Parse error:', error);
-                    }
+                    });
                     
-                    // Scroll to bottom to show latest response
-                    resultContainer.scrollTop = resultContainer.scrollHeight;
-                    
-                    // Continue reading
-                    return reader.read().then(processText);
-                });
+                    // 次のデータを読み取る
+                    return reader.read().then(processStream);
+                }
+                
+                // ストリーム処理を開始
+                reader.read().then(processStream);
             })
             .catch(error => {
                 // Error handling
-                console.error('There has been a problem with your fetch operation:', error);
-                answerDiv.textContent += "An error has occurred.";
-                answerDiv.classList.add('error');
+                console.error('通信エラーが発生しました:', error);
+                const errorDiv = document.createElement('div');
+                errorDiv.className = "answer error";
+                errorDiv.innerHTML = "通信エラーが発生しました";
+                resultContainer.appendChild(errorDiv);
+                resultContainer.scrollTop = resultContainer.scrollHeight;
             });
         });
     </script>
 </body>
 </html>
+
