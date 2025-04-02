@@ -2,9 +2,9 @@ body {
     font-family: sans-serif;
     display: flex;
     flex-direction: column;
-    height: 100vh;
+    min-height: 100vh; /* 100vhを最小の高さとして設定 */
     margin: 0;
-    font-size: 14px;
+    font-size: 13px; /* 14pxから13pxに縮小 */
 }
 
 #control-container {
@@ -43,9 +43,9 @@ body {
 }
 
 #result-container {
-    flex-grow: 1;
-    overflow-y: scroll;
-    margin-bottom: 50px; /* Height of input container + padding */
+    flex: 1 1 auto; /* 伸縮比率を変更 */
+    overflow-y: auto; /* scrollからautoに変更 */
+    margin-bottom: 70px; /* 入力エリアの高さより大きめに設定 */
     padding: 10px;
     border: 1px solid #ccc;
 }
@@ -63,6 +63,7 @@ body {
     display: flex;
     align-items: center;
     box-sizing: border-box; /* Include padding in box size */
+    z-index: 10; /* 他の要素より前面に表示 */
 }
 
 #prompt-input {
@@ -105,13 +106,17 @@ body {
     background: #d7ebfe;
     margin-left: 20px;
     margin-bottom: 10px;
-    padding: 5px 10px 5px 10px;
+    padding: 10px 15px;
     white-space: pre-wrap; /* Preserve input line breaks */
+    line-height: 1.2; /* 1.4からさらに1.2に縮小 */
+    font-size: 14px; /* 15pxから14pxに縮小 */
+    border-radius: 5px;
+    max-width: 90%; /* 幅を制限して読みやすく */
 }
 
 .question:after {
     left: 100%;
-    top: 50%;
+    top: 15px; /* 上部に揃える */
     border: solid transparent;
     content: "";
     height: 0;
@@ -121,7 +126,7 @@ body {
     border-color: rgba(201, 213, 143, 0);
     border-left-color: #d7ebfe; 
     border-width: 10px;
-    margin-top: -10px;
+    margin-top: 0; /* 修正 */
 }
 
 .answer {
@@ -129,12 +134,17 @@ body {
     background: #eaf7c1;
     margin-right: 20px;
     margin-bottom: 20px;
-    padding: 5px 10px 5px 10px;
+    padding: 10px 15px;
+    line-height: 1.3; /* 1.5からさらに1.3に縮小 */
+    font-size: 14px; /* 15pxから14pxに縮小 */
+    white-space: pre-line;
+    border-radius: 5px;
+    max-width: 90%; /* 幅を制限して読みやすく */
 }
 
 .answer:after {
     right: 100%;
-    top: 50%;
+    top: 15px; /* 上部に揃える */
     border: solid transparent;
     content: "";
     height: 0;
@@ -144,11 +154,76 @@ body {
     border-color: rgba(234, 247, 193, 0);
     border-right-color: #eaf7c1;
     border-width: 10px;
-    margin-top: -10px;
+    margin-top: 0; /* 修正 */
 }
 
 /* Error message style */
 .error {
     background-color: #ffebee; /* Light red */
+}
+
+/* Sources style */
+.sources {
+    margin: 0 20px 15px 40px;
+    padding: 5px 10px;
+    font-size: 0.9em;
+    color: #666;
+    border-left: 3px solid #ccc;
+    background-color: #f9f9f9;
+    border-radius: 0 0 4px 4px;
+}
+
+.sources a {
+    color: #0066cc;
+    text-decoration: none;
+    display: inline-block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.sources a:hover {
+    color: #004499;
+    text-decoration: underline;
+}
+
+/* ステータスメッセージのスタイル */
+.status-message {
+    padding: 8px 12px;
+    margin: 10px 0;
+    background-color: #f0f0f0;
+    color: #666;
+    border-radius: 4px;
+    font-style: italic;
+    text-align: center;
+}
+
+/* 検索結果の概要情報スタイル */
+.search-summary {
+    padding: 10px 15px;
+    margin: 15px 20px;
+    background-color: #e3f2fd;
+    border-left: 4px solid #2196F3;
+    border-radius: 4px;
+    color: #333;
+    font-weight: bold;
+}
+
+/* 複数の回答を視覚的に区別しやすくする */
+.answer + .answer {
+    margin-top: 25px;
+    border-top: 1px dashed #ccc;
+    padding-top: 15px;
+}
+
+/* エラーメッセージのスタイル調整 */
+.answer.error {
+    background-color: #ffebee;
+    border-left: 4px solid #f44336;
+}
+
+.answer.error:after {
+    border-right-color: #ffebee;
 }
 
