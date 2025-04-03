@@ -5,5 +5,4 @@ return [
     'location' => 'global',
     'dataStoreId' => 'YOUR_DATA_STORE_ID',
     'searchEngineId' => 'YOUR_SEARCH_ENGINE_ID',
-    'promptFile' => 'system_prompt.txt', // Path to system prompt file
 ];

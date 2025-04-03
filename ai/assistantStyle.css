@@ -13,6 +13,13 @@ body {
     padding: 10px;
     background-color: #f5f5f5;
     border-bottom: 1px solid #ddd;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    z-index: 10;
+    box-sizing: border-box;
 }
 
 #control-container button {
@@ -46,6 +53,7 @@ body {
     flex: 1 1 auto; /* 伸縮比率を変更 */
     overflow-y: auto; /* scrollからautoに変更 */
     margin-bottom: 70px; /* 入力エリアの高さより大きめに設定 */
+    margin-top: 50px; /* 固定ヘッダーの高さ分の余白を追加 */
     padding: 10px;
     border: 1px solid #ccc;
 }

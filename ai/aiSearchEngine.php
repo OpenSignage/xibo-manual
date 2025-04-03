@@ -3,298 +3,216 @@
  * Copyright (C) 2025 Open Source Digital Signage Initiative.
  */
 
-// エラー表示を有効化
+// Enable error display
 ini_set('display_errors', 1);
 error_reporting(E_ALL);
 
-// PHP実行時間制限の緩和（300秒）
+// Extend PHP execution time limit (300 seconds)
 set_time_limit(300);
 
-// メモリ制限を緩和（512MB）
+// Increase memory limit (512MB)
 ini_set('memory_limit', '512M');
 
-// タイムアウトやバッファリング設定
+// Timeout and buffering settings
 ini_set('default_socket_timeout', 300);
 ini_set('max_execution_time', 300);
 ignore_user_abort(true);
 
-// デバッグログファイル - UTF-8で書き込むように設定
+// Debug log file - UTF-8 encoding
 $logFile = __DIR__ . '/debug.log';
 $logDir = dirname($logFile);
 
-// ログディレクトリ確認
+// Check log directory
 if (!file_exists($logDir)) {
     mkdir($logDir, 0755, true);
 }
 
-// ログファイルの書き込み権限確認
+// Check write permissions for log directory
 if (!is_writable($logDir)) {
-    error_log('警告: ログディレクトリに書き込み権限がありません: ' . $logDir);
+    error_log('Warning: Log directory is not writable: ' . $logDir);
 }
 
+/**
+ * Simple logging function
+ * @param mixed $message Message to log
+ */
 function debug_log($message) {
     global $logFile;
     $log_entry = date('[Y-m-d H:i:s] ') . print_r($message, true) . "\n";
     
-    // エラーをキャッチしてPHPエラーログに記録
     try {
         file_put_contents($logFile, $log_entry, FILE_APPEND | LOCK_EX);
     } catch (Exception $e) {
-        error_log('デバッグログ書き込みエラー: ' . $e->getMessage());
+        error_log('Debug log write error: ' . $e->getMessage());
     }
 }
 
-debug_log('スクリプト開始');
-
-// Composer オートローダーの存在確認
+// Check for Composer autoloader
 if (!file_exists(__DIR__ . '/vendor/autoload.php')) {
-    $errorMessage = 'Composer autoload ファイルが見つかりません。`composer install` を実行してください。';
-    debug_log('エラー: ' . $errorMessage);
-    if (!headers_sent()) { /* ... ヘッダー & エラー出力 ... */ }
+    $errorMessage = 'Composer autoload file not found. Please run `composer install`.';
     die($errorMessage);
 }
 require 'vendor/autoload.php';
-debug_log('Composerオートロード完了');
 
-// 使用するクラス
+// Import required classes
 use Google\Cloud\DiscoveryEngine\V1\Client\SearchServiceClient;
 use Google\Cloud\DiscoveryEngine\V1\SearchRequest;
 use Google\ApiCore\ApiException;
 
-debug_log('クラスのインポート完了');
-
-// --- 認証設定 ---
+// Authentication setup
 $serviceAccountPathFile = __DIR__ . '/serviceAccountPath.txt';
-if (!file_exists($serviceAccountPathFile)) { /* ... エラー処理 ... */ die('サービスアカウントパスファイルが見つかりません'); }
+if (!file_exists($serviceAccountPathFile)) {
+    die('Service account path file not found');
+}
 $credentialsPath = trim(file_get_contents($serviceAccountPathFile));
-debug_log('認証ファイルパス読み込み完了');
-if (empty($credentialsPath)) { /* ... エラー処理 ... */ die('サービスアカウントパスファイルが空です'); }
-if (!file_exists($credentialsPath)) { /* ... エラー処理 ... */ die('指定された認証ファイルが見つかりません'); }
-debug_log('認証ファイル存在確認完了');
-
-// デバッグ用の情報出力を強化
-function dump_debug_info($credentialsPath) {
-    global $logFile;
-    
-    // PHP情報
-    debug_log('PHP バージョン: ' . phpversion());
-    
-    // Googleライブラリ情報
-    $lib_paths = [
-        'SearchServiceClient' => '\Google\Cloud\DiscoveryEngine\V1\Client\SearchServiceClient',
-        'SearchRequest' => '\Google\Cloud\DiscoveryEngine\V1\SearchRequest',
-        'ContentSearchSpec' => '\Google\Cloud\DiscoveryEngine\V1\SearchRequest\ContentSearchSpec',
-        'SnippetSpec' => '\Google\Cloud\DiscoveryEngine\V1\SearchRequest\ContentSearchSpec\SnippetSpec',
-        'SummarySpec' => '\Google\Cloud\DiscoveryEngine\V1\SearchRequest\ContentSearchSpec\SummarySpec'
-    ];
-    
-    debug_log('=== Google API クラスの存在チェック ===');
-    foreach ($lib_paths as $name => $path) {
-        debug_log("クラス $name ($path): " . (class_exists($path) ? '存在します' : '見つかりません'));
-    }
-    
-    // 設定ファイル情報
-    debug_log('認証ファイルパス: ' . $credentialsPath);
-    debug_log('認証ファイル存在: ' . (file_exists($credentialsPath) ? 'はい' : 'いいえ'));
-    if (file_exists($credentialsPath)) {
-        debug_log('認証ファイルサイズ: ' . filesize($credentialsPath) . ' バイト');
-    }
-    
-    // メモリ情報
-    debug_log('メモリ使用量: ' . memory_get_usage() / 1024 / 1024 . ' MB');
-    debug_log('メモリ制限: ' . ini_get('memory_limit'));
+if (empty($credentialsPath)) {
+    die('Service account path file is empty');
+}
+if (!file_exists($credentialsPath)) {
+    die('Authentication file not found at specified path');
 }
 
-// --- メイン関数 ---
-function queryVertexAIStreaming($userPrompt, $conversationHistory, $config, $credentialsPath) {
-    debug_log('queryVertexAIStreaming関数開始');
-    debug_log('パラメータ: userPrompt=' . $userPrompt);
-
+/**
+ * Main function to query AI search and stream results
+ * @param string $userPrompt User query
+ * @param array $config Configuration parameters
+ * @param string $credentialsPath Path to credentials file
+ */
+function queryVertexAIStreaming($userPrompt, $config, $credentialsPath) {
     $searchServiceClient = null;
 
     try {
-        debug_log('try ブロック開始');
-        while (ob_get_level() > 0) { ob_end_clean(); }
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
 
         if (!headers_sent()) {
             header('Content-Type: text/event-stream; charset=UTF-8');
             header('Cache-Control: no-cache');
             header('Connection: keep-alive');
-            header('X-Accel-Buffering: no'); // Nginxバッファリング無効化
-            debug_log('HTTPヘッダー設定完了');
-        } else { debug_log('警告: ヘッダーは既に送信されています。'); }
+            header('X-Accel-Buffering: no'); // Disable Nginx buffering
+        }
 
-        // 接続確認メッセージを送信
+        // Send connection confirmation message
+        debug_log("Connected. Waiting for AI response...");
         echo "event: status\n";
-        echo "data: " . json_encode(['status' => 'connected', 'message' => '接続しました。AIからの応答を待っています...'], JSON_UNESCAPED_UNICODE) . "\n\n";
+        echo "data: " . json_encode(['status' => 'connected', 'message' => '接続完了。検索準備中...'], JSON_UNESCAPED_UNICODE) . "\n\n";
         ob_flush(); flush();
-        debug_log('接続開始メッセージ送信完了');
 
-        // ハートビート送信関数
+        // Heartbeat function to keep connection alive
         $lastHeartbeat = time();
         function sendHeartbeat(&$lastHeartbeat) {
             $now = time();
-            if ($now - $lastHeartbeat >= 10) { // 10秒ごとにハートビート送信
+            if ($now - $lastHeartbeat >= 10) { // Send heartbeat every 10 seconds
                 echo "event: heartbeat\n";
                 echo "data: " . json_encode(['timestamp' => $now], JSON_UNESCAPED_UNICODE) . "\n\n";
                 ob_flush(); flush();
                 $lastHeartbeat = $now;
-                debug_log('ハートビート送信: ' . $now);
                 return true;
             }
             return false;
         }
 
-        debug_log('SearchServiceClient初期化開始');
         try {
             $searchServiceClient = new SearchServiceClient(['credentials' => $credentialsPath]);
-            debug_log('SearchServiceClient初期化成功');
             
-            // ハートビート送信
+            // Send heartbeat
             sendHeartbeat($lastHeartbeat);
         } catch (Exception $e) { 
-            $errorMsg = 'SearchServiceClient初期化エラー: ' . $e->getMessage();
+            $errorMsg = 'SearchServiceClient initialization error: ' . $e->getMessage();
             debug_log($errorMsg);
             echo "event: error\n";
-            echo "data: " . json_encode(['error' => $errorMsg], JSON_UNESCAPED_UNICODE) . "\n\n";
+            echo "data: " . json_encode(['error' => 'APIサービスとの接続に失敗しました。'], JSON_UNESCAPED_UNICODE) . "\n\n";
             ob_flush(); flush();
             return; 
         }
 
         try {
-            $promptFilePath = $config['promptFile'] ?? __DIR__ . '/prompt.txt';
-            if (!file_exists($promptFilePath)) { throw new Exception('プロンプトファイルが見つかりません: ' . $promptFilePath); }
-            debug_log('プロンプトファイル読み込み: ' . $promptFilePath);
-            $systemPrompt = file_get_contents($promptFilePath); // プロンプト利用方法は要検討
-            debug_log('プロンプト読み込み完了');
-            
-            // ハートビート送信
-            sendHeartbeat($lastHeartbeat);
-
-            // クエリの前処理 - キーワード抽出と最適化
-            debug_log('クエリ前処理開始: ' . $userPrompt);
+            // Preprocess query - extract keywords and optimize
             $searchQuery = preprocessQuery($userPrompt);
-            debug_log('最適化されたクエリ: ' . $searchQuery);
+            debug_log("検索クエリ: " . $searchQuery);
             
-            // 処理状況をクライアントに通知
+            // Notify client of processing status
             echo "event: status\n";
-            echo "data: " . json_encode(['status' => 'processing', 'message' => '検索クエリ処理中...'], JSON_UNESCAPED_UNICODE) . "\n\n";
+            echo "data: " . json_encode(['status' => 'processing', 'message' => '検索中...'], JSON_UNESCAPED_UNICODE) . "\n\n";
             ob_flush(); flush();
 
-            debug_log('ServingConfigName生成開始');
             $formattedName = SearchServiceClient::servingConfigName(
                 $config['projectId'], $config['location'],
                 $config['dataStoreId'], $config['searchEngineId']
             );
-            debug_log('ServingConfigName: ' . $formattedName);
             
-            // ハートビート送信
+            // Send heartbeat
             sendHeartbeat($lastHeartbeat);
 
-            debug_log('SearchRequest作成開始');
             $searchRequest = (new SearchRequest())
                 ->setServingConfig($formattedName)
                 ->setQuery($searchQuery)
-                ->setPageSize(15); // より多くの結果を取得して後でフィルタリング
-
-            // 利用可能クラスをデバッグ出力
-            debug_log('SearchRequest クラス: ' . get_class($searchRequest));
-            $reflectionClass = new ReflectionClass($searchRequest);
-            debug_log('利用可能メソッド: ' . implode(', ', array_map(function($method) {
-                return $method->getName();
-            }, $reflectionClass->getMethods())));
+                ->setPageSize(15); // Get more results for filtering later
             
-            // 処理状況をクライアントに通知
+            // Notify client of processing status
             echo "event: status\n";
-            echo "data: " . json_encode(['status' => 'processing', 'message' => 'Google APIに接続中...'], JSON_UNESCAPED_UNICODE) . "\n\n";
+            echo "data: " . json_encode(['status' => 'processing', 'message' => '検索中...'], JSON_UNESCAPED_UNICODE) . "\n\n";
             ob_flush(); flush();
-
-            // ContentSearchSpec機能が利用できるかどうかをチェック（使用しない）
-            $contentSearchEnabled = false;
-            try {
-                debug_log('DataStoreのContentSearch機能チェック');
-                if (class_exists('\Google\Cloud\DiscoveryEngine\V1\SearchRequest\ContentSearchSpec')) {
-                    // すでにエラーが発生しているため、この機能は使用しない
-                    debug_log('ContentSearchSpecクラスは存在しますが、DataStoreがサポートしていないため使用しません');
-                }
-            } catch (Exception $e) {
-                debug_log('ContentSearchSpecチェックエラー: ' . $e->getMessage());
-            }
             
-            // ハートビート送信
+            // Send heartbeat
             sendHeartbeat($lastHeartbeat);
 
-            // 検索実行
+            // Execute search
             try {
-                debug_log('基本検索モードでAPI呼び出し開始');
-                
-                // 処理状況をクライアントに通知
-                echo "event: status\n";
-                echo "data: " . json_encode(['status' => 'processing', 'message' => '検索実行中...'], JSON_UNESCAPED_UNICODE) . "\n\n";
-                ob_flush(); flush();
+                // Notify client of search execution
+                debug_log("Google API検索実行: " . $searchQuery);
                 
                 $response = $searchServiceClient->search($searchRequest);
-                debug_log('search API呼び出し完了');
                 
-                // 検索完了通知
-                echo "event: status\n";
-                echo "data: " . json_encode(['status' => 'processing', 'message' => '検索結果処理中...'], JSON_UNESCAPED_UNICODE) . "\n\n";
-                ob_flush(); flush();
+                debug_log("Google API検索完了");
             } catch (ApiException $e) {
-                // エラー処理
-                debug_log('API呼び出しエラー: ' . $e->getMessage() . ' - 再試行');
+                // Handle error and retry with basic search
+                debug_log("検索エラー、基本検索に切り替え: " . $e->getMessage());
                 
-                // クライアントに通知
-                echo "event: status\n";
-                echo "data: " . json_encode(['status' => 'processing', 'message' => 'エラーが発生したため、基本検索モードで再試行中...'], JSON_UNESCAPED_UNICODE) . "\n\n";
-                ob_flush(); flush();
-                
-                // より基本的な検索リクエストを作成
+                // Create more basic search request
                 $searchRequest = (new SearchRequest())
                     ->setServingConfig($formattedName)
                     ->setQuery($searchQuery)
                     ->setPageSize(15);
                 
                 $response = $searchServiceClient->search($searchRequest);
-                debug_log('基本検索モードでの検索完了');
+                debug_log("基本検索完了");
             }
             
-            // ハートビート送信
+            // Send heartbeat
             sendHeartbeat($lastHeartbeat);
 
-            // 接続を維持するために定期的にハートビートを送信
+            // Function to maintain connection
             $lastHeartbeat = time();
             function maintainConnection(&$lastHeartbeat) {
                 if (time() - $lastHeartbeat > 10) {
-                    echo ":\n\n"; // コメント行を送信して接続を維持
+                    echo ":\n\n"; // Send comment line to maintain connection
                     ob_flush(); flush();
                     $lastHeartbeat = time();
                 }
             }
 
-            // --- レスポンスの処理 ---
-            debug_log('結果処理開始');
+            // Process response
             $resultCount = 0;
-            $relevantResults = [];  // 関連性の高い結果のみを保持する配列
+            $relevantResults = [];  // Array to hold relevant results
 
             foreach ($response->getIterator() as $searchResult) {
                 $resultCount++;
-                debug_log("結果 #{$resultCount} 処理中");
-                if (!method_exists($searchResult, 'getDocument')) { continue; }
+                if (!method_exists($searchResult, 'getDocument')) {
+                    continue;
+                }
                 $document = $searchResult->getDocument();
-                debug_log('Document ID: ' . $document->getId());
 
-                // クライアント側で関連性スコアを計算
+                // Calculate relevance score
                 $relevanceScore = calculateRelevanceScore($searchQuery, $document, $searchResult);
-                debug_log("計算された関連性スコア: {$relevanceScore}");
                 
-                // 関連性スコアが低すぎる場合はスキップ (0.3未満の結果は表示しない)
+                // Skip results with low relevance score (below 0.3)
                 if ($relevanceScore < 0.3) {
-                    debug_log("関連性スコアが低いためスキップ: {$relevanceScore}");
                     continue;
                 }
                 
-                // --- Protobuf\Struct を PHP 連想配列に変換 ---
+                // Convert Protobuf\Struct to PHP associative array
                 $structData = null;
                 $_structDataProto = $document->getStructData();
                 if ($_structDataProto !== null) {
@@ -303,11 +221,13 @@ function queryVertexAIStreaming($userPrompt, $conversationHistory, $config, $cre
                             $structDataJson = $_structDataProto->serializeToJsonString();
                             $structData = json_decode($structDataJson, true);
                             if (json_last_error() !== JSON_ERROR_NONE) {
-                                debug_log("警告: structData の JSON デコード失敗: " . json_last_error_msg()); $structData = null;
+                                $structData = null;
                             }
-                        } else { debug_log("警告: structData は serializeToJsonString 未実装"); }
-                    } catch (Exception $e) { debug_log("警告: structData 変換エラー: " . $e->getMessage()); $structData = null; }
-                } else { debug_log('structData が null です。'); }
+                        }
+                    } catch (Exception $e) {
+                        $structData = null;
+                    }
+                }
 
                 $derivedData = null;
                 $_derivedDataProto = $document->getDerivedStructData();
@@ -317,99 +237,104 @@ function queryVertexAIStreaming($userPrompt, $conversationHistory, $config, $cre
                             $derivedDataJson = $_derivedDataProto->serializeToJsonString();
                             $derivedData = json_decode($derivedDataJson, true);
                             if (json_last_error() !== JSON_ERROR_NONE) {
-                                debug_log("警告: derivedData の JSON デコード失敗: " . json_last_error_msg()); $derivedData = null;
-                            } else { debug_log('Derived Data (Array): ' . print_r($derivedData, true)); }
-                        } else { debug_log("警告: derivedData は serializeToJsonString 未実装"); }
-                    } catch (Exception $e) { debug_log("警告: derivedData 変換エラー: " . $e->getMessage()); $derivedData = null; }
-                } else { debug_log('Derived Data が null です。'); }
+                                $derivedData = null;
+                            }
+                        }
+                    } catch (Exception $e) {
+                        $derivedData = null;
+                    }
+                }
 
-                // --- 変換後の PHP 配列を使ってコンテンツとURLを取得 ---
+                // Extract content and URL from converted PHP arrays
                 $answerText = '関連情報が見つかりませんでした。';
                 if ($structData !== null) {
-                    if (isset($structData['snippet']) && !empty(trim($structData['snippet']))) { $answerText = $structData['snippet']; }
-                    elseif (isset($structData['content']) && !empty(trim($structData['content']))) { $answerText = $structData['content']; }
-                    elseif (isset($structData['text']) && !empty(trim($structData['text']))) { $answerText = $structData['text']; }
-                    elseif (isset($structData['description']) && !empty(trim($structData['description']))) { $answerText = $structData['description']; }
-                    elseif (isset($structData['title']) && !empty(trim($structData['title']))) { $answerText = $structData['title']; }
-                    else { debug_log("変換後のstructData配列から有効なコンテンツフィールドが見つかりません。"); }
+                    if (isset($structData['snippet']) && !empty(trim($structData['snippet']))) {
+                        $answerText = $structData['snippet'];
+                    } elseif (isset($structData['content']) && !empty(trim($structData['content']))) {
+                        $answerText = $structData['content'];
+                    } elseif (isset($structData['text']) && !empty(trim($structData['text']))) {
+                        $answerText = $structData['text'];
+                    } elseif (isset($structData['description']) && !empty(trim($structData['description']))) {
+                        $answerText = $structData['description'];
+                    } elseif (isset($structData['title']) && !empty(trim($structData['title']))) {
+                        $answerText = $structData['title'];
+                    }
                 } else {
-                    debug_log('structDataがnullのため、Contentオブジェクトからの取得を試みます。');
                     $contentObj = $document->getContent();
                     if ($contentObj && method_exists($contentObj, 'getRawText') && !empty(trim($contentObj->getRawText()))) {
-                        $answerText = $contentObj->getRawText(); debug_log('Content->getRawText() からテキストを取得。');
+                        $answerText = $contentObj->getRawText();
                     } elseif ($contentObj && method_exists($contentObj, 'getUri')) {
-                        $answerText = 'コンテンツの場所: ' . $contentObj->getUri(); debug_log('Content->getUri() からURIを取得。');
+                        $answerText = 'Content location: ' . $contentObj->getUri();
                     }
-                 }
+                }
 
                 $pageUrl = '';
                 if ($derivedData !== null) {
-                    if (isset($derivedData['link']) && !empty($derivedData['link'])) { $pageUrl = $derivedData['link']; }
-                    elseif (isset($derivedData['url']) && !empty($derivedData['url'])) { $pageUrl = $derivedData['url']; }
-                    elseif (isset($derivedData['uri']) && !empty($derivedData['uri'])) { $pageUrl = $derivedData['uri']; }
-                    elseif (isset($derivedData['page_url']) && !empty($derivedData['page_url'])) { $pageUrl = $derivedData['page_url']; }
-                    debug_log('derivedDataからURL取得試行: ' . ($pageUrl ? '成功' : '失敗'));
-                } else { 
-                    debug_log('derivedDataがnullのため、URLの取得ができません'); 
+                    if (isset($derivedData['link']) && !empty($derivedData['link'])) {
+                        $pageUrl = $derivedData['link'];
+                    } elseif (isset($derivedData['url']) && !empty($derivedData['url'])) {
+                        $pageUrl = $derivedData['url'];
+                    } elseif (isset($derivedData['uri']) && !empty($derivedData['uri'])) {
+                        $pageUrl = $derivedData['uri'];
+                    } elseif (isset($derivedData['page_url']) && !empty($derivedData['page_url'])) {
+                        $pageUrl = $derivedData['page_url'];
+                    }
                 }
                 
-                // $structDataからもURLを探す（$derivedDataからURLが取得できなかった場合）
+                // Check $structData for URL if not found in $derivedData
                 if (empty($pageUrl) && $structData !== null) {
-                    if (isset($structData['link']) && !empty($structData['link'])) { $pageUrl = $structData['link']; }
-                    elseif (isset($structData['url']) && !empty($structData['url'])) { $pageUrl = $structData['url']; }
-                    elseif (isset($structData['uri']) && !empty($structData['uri'])) { $pageUrl = $structData['uri']; }
-                    elseif (isset($structData['page_url']) && !empty($structData['page_url'])) { $pageUrl = $structData['page_url']; }
-                    debug_log('structDataからURL取得試行: ' . ($pageUrl ? '成功' : '失敗'));
+                    if (isset($structData['link']) && !empty($structData['link'])) {
+                        $pageUrl = $structData['link'];
+                    } elseif (isset($structData['url']) && !empty($structData['url'])) {
+                        $pageUrl = $structData['url'];
+                    } elseif (isset($structData['uri']) && !empty($structData['uri'])) {
+                        $pageUrl = $structData['uri'];
+                    } elseif (isset($structData['page_url']) && !empty($structData['page_url'])) {
+                        $pageUrl = $structData['page_url'];
+                    }
                 }
                 
-                // ドキュメントオブジェクトの他のプロパティからURLを探す（最後の手段）
+                // Last resort: check document object properties for URL
                 if (empty($pageUrl)) {
                     $contentObj = $document->getContent();
                     if ($contentObj && method_exists($contentObj, 'getUri') && !empty($contentObj->getUri())) {
                         $pageUrl = $contentObj->getUri();
-                        debug_log('Content->getUri()からURL取得: ' . $pageUrl);
                     }
                 }
                 
-                // URLの先頭部分（最初の「/」まで）を削除
+                // Process URL for proper formatting
                 if (!empty($pageUrl)) {
                     $slashPos = strpos($pageUrl, '/');
                     if ($slashPos !== false && $slashPos > 0) {
-                        // 先頭ディレクトリを「../」に置き換え
+                        // Replace leading directory with "../"
                         $pageUrl = '../' . substr($pageUrl, $slashPos + 1);
-                        debug_log('URLの先頭ディレクトリを「../」に変更しました');
                     } else {
-                        // スラッシュがない場合はそのまま「../」を追加
+                        // If no slash, just add "../"
                         $pageUrl = '../' . $pageUrl;
-                        debug_log('URLにスラッシュがないため、先頭に「../」を追加しました');
                     }
                 }
-                
-                debug_log('最終URL=' . $pageUrl);
 
-                // 長すぎるテキストは要約
+                // Summarize long text for better display
                 $originalText = $answerText;
                 $hasFullText = false;
                 
-                // テキストが長い場合は要約
                 if (mb_strlen($answerText) > 500) {
-                    debug_log('長いテキスト（' . mb_strlen($answerText) . '文字）を要約します');
                     $hasFullText = true;
                     $answerText = summarizeText($answerText);
-                    debug_log('要約後のテキスト: ' . mb_strlen($answerText) . '文字');
                 }
 
-                // 句点の後に改行を挿入して読みやすくする
+                // Improve text readability by adding line breaks
                 $answerText = improveTextReadability($answerText);
                 if ($hasFullText) {
                     $originalText = improveTextReadability($originalText);
                 }
 
-                // --- 結果送信 ---
-                if (is_array($answerText) || is_object($answerText)) { $answerText = json_encode($answerText, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT); }
-                debug_log("結果 #{$resultCount} 送信: Answer=" . mb_substr($answerText, 0, 50, 'UTF-8') . "URL=" . $pageUrl);
+                // Convert arrays/objects to JSON if needed
+                if (is_array($answerText) || is_object($answerText)) {
+                    $answerText = json_encode($answerText, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+                }
                 
-                // 関連性の高い結果として保存
+                // Save as relevant result
                 $resultItem = [
                     'answer' => $answerText, 
                     'page_url' => $pageUrl, 
@@ -417,7 +342,7 @@ function queryVertexAIStreaming($userPrompt, $conversationHistory, $config, $cre
                     'relevance_score' => $relevanceScore
                 ];
                 
-                // 元のテキストも保存（要約された場合）
+                // Save original text if summarized
                 if ($hasFullText) {
                     $resultItem['has_full_text'] = true;
                     $resultItem['full_text'] = $originalText;
@@ -426,12 +351,12 @@ function queryVertexAIStreaming($userPrompt, $conversationHistory, $config, $cre
                 $relevantResults[] = $resultItem;
             } // end foreach
 
-            // 関連性でソート
+            // Sort by relevance
             usort($relevantResults, function($a, $b) {
                 return $b['relevance_score'] <=> $a['relevance_score'];
             });
 
-            // 関連性の高い上位の結果のみを送信
+            // Send top relevant results
             $resultsSent = 0;
             foreach ($relevantResults as $result) {
                 echo "event: answer\n";
@@ -441,22 +366,18 @@ function queryVertexAIStreaming($userPrompt, $conversationHistory, $config, $cre
                 $resultsSent++;
             }
 
-            // --- 結果0件の場合の処理 ---
+            // Handle case when no results are found
             if ($resultsSent === 0) {
-                debug_log('結果0件 - サマリー処理開始');
-                // サマリー機能が利用可能な場合は使用
+                // Use summary if available
                 if (method_exists($response, 'getSummary') && ($summary = $response->getSummary()) !== null) {
                     if (method_exists($summary, 'getSummaryText') && !empty(trim($summary->getSummaryText()))) {
                         $finalMessage = $summary->getSummaryText();
-                        debug_log('サマリーテキスト: ' . $finalMessage);
                     } else { 
-                        $finalMessage = '該当する情報が見つかりませんでした。';
-                        debug_log('サマリーテキストがありません'); 
+                        $finalMessage = '関連情報が見つかりませんでした。';
                     }
                     
-                    // サマリー内の参照情報があれば取得
+                    // Get references if available
                     if (method_exists($summary, 'getReferences') && !empty($summary->getReferences())) {
-                        debug_log('参照情報あり');
                         $references = [];
                         foreach ($summary->getReferences() as $reference) {
                             if (method_exists($reference, 'getUri')) {
@@ -480,20 +401,17 @@ function queryVertexAIStreaming($userPrompt, $conversationHistory, $config, $cre
                         ob_flush(); flush();
                     }
                 } else {
-                    debug_log('サマリー機能は利用できません');
                     echo "event: status\n";
                     echo "data: " . json_encode([
                         'status' => 'no_results', 
-                        'message' => '該当する情報が見つかりませんでした。'
+                        'message' => '関連情報が見つかりませんでした。'
                     ], JSON_UNESCAPED_UNICODE) . "\n\n";
                     ob_flush(); flush();
                 }
             } else {
-                // サマリー情報を送信（結果が複数ある場合）
+                // Send summary info if multiple results
                 if ($resultsSent > 1) {
-                    debug_log("検索完了: {$resultsSent}件の関連結果を送信しました");
-                    
-                    // 検索結果の概要情報を送信
+                    // Send search results overview
                     echo "event: summary\n";
                     echo "data: " . json_encode([
                         'status' => 'results_summary',
@@ -505,118 +423,125 @@ function queryVertexAIStreaming($userPrompt, $conversationHistory, $config, $cre
             }
 
         } catch (ApiException $e) { 
-            $errorMsg = 'API呼び出しエラー: ' . $e->getMessage() . ' (コード: ' . $e->getCode() . ')';
+            $errorMsg = 'API call error: ' . $e->getMessage() . ' (Code: ' . $e->getCode() . ')';
             debug_log($errorMsg);
             
-            // クライアントにエラーを通知
+            // Notify client of error
             echo "event: error\n";
-            echo "data: " . json_encode(['error' => $errorMsg], JSON_UNESCAPED_UNICODE) . "\n\n";
+            echo "data: " . json_encode(['error' => '検索サービスでエラーが発生しました。'], JSON_UNESCAPED_UNICODE) . "\n\n";
             ob_flush(); flush();
         }
         catch (Exception $e) { 
-            $errorMsg = '一般エラー: ' . $e->getMessage();
+            $errorMsg = 'General error: ' . $e->getMessage();
             debug_log($errorMsg);
             
-            // クライアントにエラーを通知
+            // Notify client of error
             echo "event: error\n";
-            echo "data: " . json_encode(['error' => $errorMsg], JSON_UNESCAPED_UNICODE) . "\n\n";
+            echo "data: " . json_encode(['error' => 'エラーが発生しました。'], JSON_UNESCAPED_UNICODE) . "\n\n";
             ob_flush(); flush();
         }
 
-        debug_log('完了シグナル送信');
+        // Send completion signal
         echo "event: status\n";
         echo "data: " . json_encode(['status' => 'completed'], JSON_UNESCAPED_UNICODE) . "\n\n";
         ob_flush(); flush();
 
     } catch (Throwable $e) { 
-        $errorMsg = '致命的エラー: ' . $e->getMessage();
+        $errorMsg = 'Fatal error: ' . $e->getMessage();
         debug_log($errorMsg);
         
-        // クライアントにエラーを通知
+        // Notify client of error
         echo "event: error\n";
-        echo "data: " . json_encode(['error' => $errorMsg], JSON_UNESCAPED_UNICODE) . "\n\n";
+        echo "data: " . json_encode(['error' => '深刻なエラーが発生しました。'], JSON_UNESCAPED_UNICODE) . "\n\n";
         ob_flush(); flush();
     }
     finally {
-        if ($searchServiceClient !== null) { $searchServiceClient->close(); }
-        debug_log('queryVertexAIStreaming関数終了');
+        if ($searchServiceClient !== null) {
+            $searchServiceClient->close();
+        }
     }
 } // end function queryVertexAIStreaming
 
-// --- リクエスト処理 ---
-debug_log('リクエストメソッド: ' . ($_SERVER['REQUEST_METHOD'] ?? 'N/A'));
-debug_log('=== 詳細デバッグ情報 ===');
-dump_debug_info($credentialsPath);
-
+// Process request
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
-    // JSONリクエストボディの読み取り
+    // Read JSON request body
     $json_data = file_get_contents('php://input');
-    debug_log('受信したJSONデータ: ' . $json_data);
     
-    // JSONデータをデコード
+    // Decode JSON data
     $post_data = json_decode($json_data, true);
     if (json_last_error() !== JSON_ERROR_NONE) {
-        debug_log('エラー: JSONデータのデコードに失敗: ' . json_last_error_msg());
+        debug_log('JSONデータの解析に失敗: ' . json_last_error_msg());
         echo "event: error\n";
-        echo "data: " . json_encode(['error' => 'JSONデータの解析に失敗しました。'], JSON_UNESCAPED_UNICODE) . "\n\n";
+        echo "data: " . json_encode(['error' => 'リクエストデータの形式が不正です。'], JSON_UNESCAPED_UNICODE) . "\n\n";
         die();
     }
-    
-    debug_log('デコードされたPOSTデータ: ' . print_r($post_data, true));
     
     $userPrompt = $post_data['question'] ?? '';
-    $conversationHistory = $post_data['history'] ?? [];
     
     if (empty($userPrompt)) {
-        debug_log('エラー: 質問が空です');
+        debug_log('空の質問が送信されました');
         echo "event: error\n";
-        echo "data: " . json_encode(['error' => '質問が空です。'], JSON_UNESCAPED_UNICODE) . "\n\n";
+        echo "data: " . json_encode(['error' => '質問が入力されていません。'], JSON_UNESCAPED_UNICODE) . "\n\n";
         die();
     }
-    
-    debug_log('質問: ' . $userPrompt);
-    debug_log('会話履歴件数: ' . count($conversationHistory));
 
-    // --- 設定ファイルの読み込み & チェック ---
+    // Load configuration file
     $configPath = __DIR__ . '/config.php';
-    if (!file_exists($configPath)) { /* ... エラー処理 ... */ die(); }
-    debug_log('設定ファイル読み込み開始');
+    if (!file_exists($configPath)) {
+        debug_log('設定ファイルが見つかりません: ' . $configPath);
+        die('Configuration file not found');
+    }
     $config = require $configPath;
     $requiredConfigKeys = ['projectId', 'location', 'dataStoreId', 'searchEngineId'];
-    foreach ($requiredConfigKeys as $key) { if (!isset($config[$key]) || empty($config[$key])) { /* ... エラー処理 ... */ die(); } }
+    foreach ($requiredConfigKeys as $key) {
+        if (!isset($config[$key]) || empty($config[$key])) {
+            debug_log('必須の設定キーがありません: ' . $key);
+            die("Missing required configuration key: {$key}");
+        }
+    }
 
-    // --- メイン関数呼び出し ---
-    queryVertexAIStreaming($userPrompt, $conversationHistory, $config, $credentialsPath);
-} else { /* ... POST以外エラー処理 ... */ }
+    // Call main function
+    queryVertexAIStreaming($userPrompt, $config, $credentialsPath);
+} else {
+    // Only accept POST requests
+    header('HTTP/1.1 405 Method Not Allowed');
+    header('Allow: POST');
+    echo "This endpoint only accepts POST requests.";
+}
 
-debug_log('スクリプト終了');
-
-// クエリ前処理関数を追加
+/**
+ * Preprocess query for optimization
+ * @param string $userPrompt Raw user query
+ * @return string Optimized query
+ */
 function preprocessQuery($userPrompt) {
-    // 簡単なクエリ最適化
-    // 長すぎるクエリは要約
+    // Summarize long queries
     if (mb_strlen($userPrompt) > 200) {
-        // 長いクエリの場合、重要そうな部分を抽出
+        // Extract important parts for long queries
         $keywords = extractKeywords($userPrompt);
         return $keywords;
     }
     
-    // 特殊文字の処理
+    // Process special characters
     $cleaned = preg_replace('/[^\p{L}\p{N}\s\.\,\?\!]/u', ' ', $userPrompt);
     
     return trim($cleaned);
 }
 
-// キーワード抽出関数
+/**
+ * Extract keywords from text
+ * @param string $text Text to extract keywords from
+ * @return string Space-separated keywords
+ */
 function extractKeywords($text) {
-    // 簡易的なキーワード抽出
-    // ストップワードのリスト（日本語と英語の一般的なもの）
+    // Basic keyword extraction
+    // List of stopwords (common Japanese and English words)
     $stopWords = ['の', 'に', 'は', 'を', 'た', 'が', 'で', 'て', 'と', 'し', 'れ', 'さ', 'ある', 'いる', 'する', 'から', 'など', 'the', 'is', 'at', 'which', 'on', 'a', 'an', 'and', 'or', 'for', 'in', 'to', 'that', 'this', 'with'];
     
-    // 文字列を単語に分割（日本語は形態素解析が理想だが、ここでは簡易的に空白で分割）
+    // Split text into words (ideally morphological analysis for Japanese, but simple space splitting here)
     $words = preg_split('/[\s\.\,\?\!]+/u', $text);
     
-    // ストップワードと短すぎる単語を除外
+    // Filter out stopwords and short words
     $keywords = [];
     foreach ($words as $word) {
         $word = trim($word);
@@ -625,34 +550,36 @@ function extractKeywords($text) {
         }
     }
     
-    // 重複を除去して結合
+    // Remove duplicates
     $keywords = array_unique($keywords);
     
-    // 最大10個のキーワードに制限
+    // Limit to maximum 10 keywords
     $keywords = array_slice($keywords, 0, 10);
     
     return implode(' ', $keywords);
 }
 
-// 関連性スコア計算関数を追加
+/**
+ * Calculate relevance score between query and document
+ * @param string $query Search query
+ * @param object $document Document object
+ * @param object $searchResult Search result object
+ * @return float Relevance score (0.0-1.0)
+ */
 function calculateRelevanceScore($query, $document, $searchResult) {
-    // APIから直接スコアが取得できる場合はそれを使用
+    // Use API score if available
     if (method_exists($searchResult, 'getRelevanceScore')) {
         $apiScore = $searchResult->getRelevanceScore();
         if ($apiScore > 0) {
-            debug_log("API提供の関連性スコア: {$apiScore}を使用");
             return $apiScore;
         }
     }
     
-    // APIからスコアが取得できない場合は簡易的なスコア計算を行う
-    debug_log('独自の関連性スコア計算を実行');
-    
-    // ドキュメントからテキストを抽出
+    // Calculate our own score if API score not available
     $docText = '';
     $structData = null;
     
-    // structDataからテキスト抽出を試みる
+    // Try to extract text from structData
     $_structDataProto = $document->getStructData();
     if ($_structDataProto !== null) {
         try {
@@ -660,7 +587,7 @@ function calculateRelevanceScore($query, $document, $searchResult) {
                 $structDataJson = $_structDataProto->serializeToJsonString();
                 $structData = json_decode($structDataJson, true);
                 
-                // 主要フィールドからテキストを抽出
+                // Extract text from main fields
                 foreach (['content', 'text', 'description', 'title', 'snippet'] as $field) {
                     if (isset($structData[$field]) && !empty(trim($structData[$field]))) {
                         $docText .= ' ' . $structData[$field];
@@ -668,11 +595,11 @@ function calculateRelevanceScore($query, $document, $searchResult) {
                 }
             }
         } catch (Exception $e) {
-            debug_log('structData解析エラー: ' . $e->getMessage());
+            // Ignore error and try other methods
         }
     }
     
-    // Contentオブジェクトからテキスト抽出を試みる
+    // Try to extract text from Content object
     if (empty($docText)) {
         $contentObj = $document->getContent();
         if ($contentObj && method_exists($contentObj, 'getRawText')) {
@@ -680,25 +607,29 @@ function calculateRelevanceScore($query, $document, $searchResult) {
         }
     }
     
-    // テキストが取得できない場合はドキュメントIDをスコア計算に使用
+    // Use document ID if no text is found
     if (empty($docText)) {
         $docText = $document->getId();
     }
     
-    // クエリとドキュメントの類似性を簡易的に計算
+    // Calculate similarity between query and document
     $score = calculateTextSimilarity($query, $docText);
     
-    debug_log("計算された類似性スコア: {$score}");
     return $score;
 }
 
-// テキスト類似性計算関数
+/**
+ * Calculate text similarity score
+ * @param string $query Query text
+ * @param string $text Document text
+ * @return float Similarity score (0.1-1.0)
+ */
 function calculateTextSimilarity($query, $text) {
-    // クエリとテキストを正規化
+    // Normalize query and text
     $normalizedQuery = mb_strtolower(trim($query));
     $normalizedText = mb_strtolower(trim($text));
     
-    // 単語の重複率を計算
+    // Calculate word overlap
     $queryWords = preg_split('/\s+/', $normalizedQuery);
     $textWords = preg_split('/\s+/', $normalizedText);
     
@@ -706,62 +637,67 @@ function calculateTextSimilarity($query, $text) {
     foreach ($queryWords as $queryWord) {
         if (empty($queryWord)) continue;
         
-        // 完全一致またはテキスト内に単語が含まれる場合
+        // Count exact matches or substring matches
         if (in_array($queryWord, $textWords) || mb_strpos($normalizedText, $queryWord) !== false) {
             $matchCount++;
         }
     }
     
-    // 基本スコア - 単語の一致率（0〜1）
+    // Base score - word match ratio (0-1)
     $baseScore = count($queryWords) > 0 ? $matchCount / count($queryWords) : 0;
     
-    // テキストの長さも考慮（短すぎるテキストは信頼性が低い）
+    // Consider text length (very short texts are less reliable)
     $lengthFactor = min(mb_strlen($normalizedText) / 100, 1.0);
     
-    // 最終スコア = 基本スコア × 長さファクター
+    // Final score = base score × length factor
     $finalScore = $baseScore * $lengthFactor;
     
-    // 0.1〜1.0の範囲にスコアを調整
+    // Adjust score to 0.1-1.0 range
     return max(0.1, min(1.0, $finalScore));
 }
 
-// テキスト要約関数
+/**
+ * Summarize text to specified length
+ * @param string $text Text to summarize
+ * @param int $maxLength Maximum length of summary
+ * @return string Summarized text
+ */
 function summarizeText($text, $maxLength = 200) {
-    // テキストが既に十分短い場合はそのまま返す
+    // Return as is if already short enough
     if (mb_strlen($text) <= $maxLength) {
         return $text;
     }
     
-    // まず段落に分割して重要な段落を抽出
+    // Split into paragraphs and extract important ones
     $paragraphs = preg_split('/\n\s*\n|\r\n\s*\r\n/', $text);
     
-    // 最初の段落は通常重要なので必ず含める
+    // First paragraph is usually important
     $summary = isset($paragraphs[0]) ? trim($paragraphs[0]) : '';
     
-    // 最初の段落だけで十分な長さがある場合
+    // If first paragraph is long enough
     if (mb_strlen($summary) >= $maxLength * 0.8) {
         return mb_substr($summary, 0, $maxLength) . '…';
     }
     
-    // 文に分割
+    // Split into sentences
     $sentences = preg_split('/(?<=[。．!\?！？])\s*/', $text);
     
-    // 最大長に収まるまで文を追加
+    // Add sentences until max length is reached
     $summary = '';
     foreach ($sentences as $sentence) {
         $sentence = trim($sentence);
         if (empty($sentence)) continue;
         
-        // 追加するとオーバーするなら終了
+        // Stop if adding would exceed max length
         if (mb_strlen($summary . $sentence) > $maxLength) {
-            // 既に十分な長さがあれば終了
+            // If already long enough, stop
             if (mb_strlen($summary) > $maxLength * 0.5) {
                 break;
             }
             
-            // そうでなければ、切り詰めて追加
+            // Otherwise, add truncated sentence
             $remainingLength = $maxLength - mb_strlen($summary);
-            if ($remainingLength > 15) { // 少なくとも15文字は追加
+            if ($remainingLength > 15) { // At least 15 chars
                 $summary .= mb_substr($sentence, 0, $remainingLength) . '…';
             }
             break;
@@ -770,36 +706,40 @@ function summarizeText($text, $maxLength = 200) {
         $summary .= $sentence . ' ';
     }
     
-    // 文末が...でない場合は追加
+    // Add ellipsis if not already there
     if (mb_substr($summary, -3) !== '...' && mb_substr($summary, -1) !== '…') {
         $summary .= '…';
     }
 
-    // 結果の整形（三点リーダーの正規化）
+    // Format result (normalize ellipsis)
     $summary = str_replace('...', '…', trim($summary));
     $summary = str_replace('  ', ' ', $summary);
     
     return $summary;
 }
 
-// テキストの読みやすさを改善する関数
+/**
+ * Improve text readability by adding line breaks
+ * @param string $text Text to improve
+ * @return string Formatted text with line breaks
+ */
 function improveTextReadability($text) {
-    // 三点リーダー（...）を特殊文字の「…」に置換
+    // Replace "..." with "…"
     $text = str_replace('...', '…', $text);
     
-    // 句点（。）の後に改行を挿入 - HTMLタグも追加
+    // Add line break after Japanese periods - include HTML tags
     $text = preg_replace('/。(?!\n)/u', "。<br>\n", $text);
     
-    // 連続する改行タグを削除
+    // Remove excess line break tags
     $text = preg_replace('/<br>\s*<br>\s*<br>/u', "<br><br>", $text);
     
-    // 英文の場合のピリオド後も改行 - HTMLタグも追加
+    // Add line break after English periods - include HTML tags
     $text = preg_replace('/\.(?!\n)(?!\d)(?!<br>)/u', ".<br>\n", $text);
     
-    // "？"や"！"の後も改行 - HTMLタグも追加
+    // Add line break after "?" and "!" - include HTML tags
     $text = preg_replace('/([！？!?])(?!\n)(?!<br>)/u', "$1<br>\n", $text);
     
-    // すでに連続する改行があれば整理
+    // Clean up consecutive line breaks
     $text = preg_replace('/\n{3,}/u', "\n\n", $text);
     
     return $text;
