@@ -10,7 +10,7 @@ persona: "コンテンツ マネージャー"
 
 **要素** を使用して、レイアウト上の任意の場所に [通知](users_notifications.html) データを表示します。
 
-{feat}通知|v4{/feat}
+{feat}Notification|v4{/feat}
 
 ## 通知要素
 

@@ -10,7 +10,7 @@ persona: "コンテンツ マネージャー"
 
 [ライブラリ検索](layouts_editor.html#content-toolbar) から、レイアウトとプレイリストで再生するビデオ ファイルを追加します。
 
-{feat}ビデオ|v4{/feat}
+{feat}Video|v4{/feat}
 
 ## 概要
 

@@ -9,7 +9,7 @@ persona: "コンテンツ マネージャー、管理者"
 
 # トランジション管理
 
-{feat}トランジション|v4{/feat}
+{feat}Transitions|v4{/feat}
 
 {version}
 

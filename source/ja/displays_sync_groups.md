@@ -11,7 +11,7 @@ persona: "スケジュール マネージャー、ディスプレイ マネー�
 
 同期グループには、同期されたコンテンツを表示するディスプレイが含まれます。[同期イベント](scheduling_events.html#content-synchronised-events) をスケジュールするときに、コンテンツを同期して、ミラーリングまたはビデオ ウォール構成の 2 つ以上のディスプレイで再生できます。
 
-{feat}同期グループ|v4{/feat}
+{feat}Sync Groups|v4{/feat}
 
 {tip}
 **コンテンツ同期キー** を使用して、異なるレイアウトの [プレイリスト](layouts_editor_playlists.html) を同期します。

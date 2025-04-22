@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 28 28">
+  <g id="Icon_Close" data-name="Icon/Close" transform="translate(1.199 1.199)">
+    <rect id="Container" width="28" height="28" transform="translate(-1.199 -1.199)" fill="none"/>
+    <path id="Path_2814" data-name="Path 2814" d="M12.65,0A12.65,12.65,0,1,0,25.3,12.65,12.651,12.651,0,0,0,12.65,0Zm0,24.458A11.807,11.807,0,1,1,24.458,12.65,11.807,11.807,0,0,1,12.65,24.458Z" transform="translate(0.15 0.15)" fill="#bfbfbf" stroke="#bfbfbf" stroke-width="0.8"/>
+    <path id="Path_2815" data-name="Path 2815" d="M13.745,6.676H7.462V.393a.393.393,0,1,0-.785,0V6.676H.393a.393.393,0,1,0,0,.785H6.676v6.284a.393.393,0,0,0,.785,0V7.462h6.284a.393.393,0,0,0,0-.785Z" transform="translate(12.801 2.804) rotate(45)" fill="#bfbfbf" stroke="#bfbfbf" stroke-width="0.8"/>
+  </g>
+</svg>

@@ -135,7 +135,7 @@ XMR はデフォルトで **Xibo Cloud Hosting** で構成されており、設�
 
 ### HTTPS を強制
 
-{feat}HTTPS 接続を強制|v4{/feat}
+{feat}Force HTTPS Connection|v4{/feat}
 
 **ネットワーク** タブからチェックボックスを使用して、HTTPS を使用してディスプレイを CMS に接続します。
 

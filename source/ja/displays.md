@@ -30,7 +30,7 @@ persona: "display manager、administrator"
 ディスプレイの追加 (コード) 機能は、プレーヤーをインストールした後、プレーヤーをCMSに簡単に接続するために使用できます。 プレーヤーは接続するためにフォームに入力する6文字のアクティベーションコードを表示します。
 {/tip}
 
-{feat}認証コードを使用して接続|v4{/feat}
+{feat}Connect using Authentication Code|v4{/feat}
 
 ディスプレイを [フォルダ](/manual/en/tour_folders.html) に保存すると、ディスプレイのユーザー/ユーザー グループ インタラクション レベルを簡単に制御できるほか、整理方法も追加できます。
 
