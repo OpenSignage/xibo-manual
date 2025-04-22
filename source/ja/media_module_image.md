@@ -9,7 +9,7 @@ persona: "コンテンツ マネージャー"
 
 [ライブラリ検索](layouts_editor.html#content-library-search) から、レイアウトとプレイリストに含める画像ファイルを追加します。
 
-{feat}画像|v4{/feat}
+{feat}Image|v4{/feat}
 
 ## 概要
 

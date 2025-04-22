@@ -11,7 +11,7 @@ persona: "コンテンツ マネージャー"
 
 レイアウトとプレイリストに表示する HTML と JavaScript を埋め込みます。
 
-{feat}埋め込み HTML|v4{/feat}
+{feat}Embedded HTML|v4{/feat}
 
 ## 概要
 

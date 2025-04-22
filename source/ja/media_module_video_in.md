@@ -9,7 +9,7 @@ persona: "コンテンツ マネージャー"
 
 SoC ディスプレイに外部ソースからの入力を表示する場合に使用します。
 
-{feat}ビデオ入力|v4{/feat}
+{feat}Video In|v4{/feat}
 
 {version}
 **注:** このウィジェットは、webOS および Tizen プレーヤー、および Android 8 のみを実行する Philips システム オン チップ プレーヤーで使用できます。

@@ -11,7 +11,7 @@ persona: "コンテンツ マネージャー"
 
 **要素** を使用してレイアウト上の任意の場所に株式リストの取引価格情報を表示するか、**静的テンプレート** を選択してレイアウト/プレイリストに結果を表示します。
 
-{feat}株式|v4{/feat}
+{feat}Stocks|v4{/feat}
 
 株式ウィジェットは、構成された要素と静的テンプレートにフィードされる株式市場データを取得するために、[Alpha Vantage API](https://www.alphavantage.co/) に部分的に依存しています。 Alpha Vantage によって返される価格は、株式分割や配当支払いなどの企業イベントに合わせて調整される [株式市場標準](https://medium.com/@patrick.collins_58673/stock-api-landscape-5c6e054ee631) に従います。
 

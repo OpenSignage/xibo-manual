@@ -24,7 +24,7 @@ keywords: "共通アラート プロトコル、CAP フィード、CAP URL、CAP
 
 ## プレーヤー機能のサポート
 
-{feat}緊急アラート|v4{/feat}
+{feat}Emergency Alert|v4{/feat}
 
 ## 詳細情報
 

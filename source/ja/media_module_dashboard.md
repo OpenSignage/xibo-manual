@@ -14,7 +14,7 @@ persona: "コンテンツ マネージャー"
 
 **注意:** この商用ウィジェットは **Xibo ダッシュボード サービス** の一部であり、構成には API が必要です。詳細については、[こちら](/pricing#dashboards) を参照してください。
 
-{feat}ダッシュボード|v4{/feat}
+{feat}Dashboards|v4{/feat}
 
 ## 構成
 

@@ -11,7 +11,7 @@ persona: "コンテンツ マネージャー"
 
 [ライブラリ検索](layouts_editor.html#content-library-search) から、レイアウトとプレイリストで再生するオーディオ ファイルを追加します。
 
-{feat}オーディオ|v4{/feat}
+{feat}Audio|v4{/feat}
 
 ## 概要
 
