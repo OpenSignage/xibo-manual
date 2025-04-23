@@ -55,32 +55,152 @@ if (!file_exists(__DIR__ . '/vendor/autoload.php')) {
 require 'vendor/autoload.php';
 
 // Import required classes
-use Google\Cloud\DiscoveryEngine\V1\Client\SearchServiceClient;
-use Google\Cloud\DiscoveryEngine\V1\SearchRequest;
-use Google\ApiCore\ApiException;
+use Google\Cloud\Storage\StorageClient;
+use Google\Cloud\Core\Exception\GoogleException;
 
-// Authentication setup
-$serviceAccountPathFile = __DIR__ . '/serviceAccountPath.txt';
-if (!file_exists($serviceAccountPathFile)) {
-    die('Service account path file not found');
+// Gemini API設定
+$GEMINI_API_KEY = '';
+$GEMINI_API_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent';
+$MANUAL_DATA_PATH = __DIR__ . '/learning_data.json';
+$SYSTEM_PROMPT_PATH = __DIR__ . '/system_prompt.txt';
+
+// システムプロンプトの読み込み
+function loadSystemPrompt() {
+    global $SYSTEM_PROMPT_PATH;
+    
+    try {
+        if (!file_exists($SYSTEM_PROMPT_PATH)) {
+            throw new Exception('システムプロンプトファイルが見つかりません: ' . $SYSTEM_PROMPT_PATH);
+        }
+        
+        $prompt = file_get_contents($SYSTEM_PROMPT_PATH);
+        if ($prompt === false) {
+            throw new Exception('システムプロンプトの読み込みに失敗しました');
+        }
+        
+        return trim($prompt);
+    } catch (Exception $e) {
+        debug_log('システムプロンプト読み込みエラー: ' . $e->getMessage());
+        // デフォルトのプロンプトを返す
+        return <<<EOT
+あなたはXiboデジタルサイネージシステムのマニュアルアシスタントです。
+以下の指針に従って応答してください：
+
+1. マニュアルの内容に基づいて正確な情報を提供してください。
+2. 技術的な説明は簡潔かつ分かりやすく行ってください。
+3. 不明な点がある場合は、その旨を明確に伝えてください。
+4. 必要に応じて、関連する設定手順やトラブルシューティングの方法を提案してください。
+5. 回答は日本語で提供してください。
+
+ユーザーからの質問に対して、上記の指針に基づいて回答を生成してください。
+EOT;
+    }
 }
-$credentialsPath = trim(file_get_contents($serviceAccountPathFile));
-if (empty($credentialsPath)) {
-    die('Service account path file is empty');
-}
-if (!file_exists($credentialsPath)) {
-    die('Authentication file not found at specified path');
+
+$SYSTEM_PROMPT = loadSystemPrompt();
+
+/**
+ * マニュアルデータを読み込む
+ * @return array|null マニュアルデータ
+ */
+function loadManualData() {
+    global $MANUAL_DATA_PATH;
+    
+    try {
+        if (!file_exists($MANUAL_DATA_PATH)) {
+            throw new Exception('マニュアルデータファイルが見つかりません: ' . $MANUAL_DATA_PATH);
+        }
+        
+        $jsonData = file_get_contents($MANUAL_DATA_PATH);
+        if ($jsonData === false) {
+            throw new Exception('マニュアルデータの読み込みに失敗しました');
+        }
+        
+        $manualData = json_decode($jsonData, true);
+        if (json_last_error() !== JSON_ERROR_NONE) {
+            throw new Exception('マニュアルデータのJSONパースに失敗: ' . json_last_error_msg());
+        }
+        
+        return $manualData;
+    } catch (Exception $e) {
+        debug_log('マニュアルデータ読み込みエラー: ' . $e->getMessage());
+        return null;
+    }
 }
 
 /**
- * Main function to query AI search and stream results
+ * 質問に関連するマニュアルコンテンツを検索
+ * @param string $query ユーザーの質問
+ * @param array $manualData マニュアルデータ
+ * @return array 関連するコンテキストとURL
+ */
+function findRelevantContext($query, $manualData) {
+    if (empty($manualData)) {
+        return ['context' => '', 'urls' => []];
+    }
+    
+    $relevantSections = [];
+    $queryKeywords = extractKeywords($query);
+    
+    foreach ($manualData as $section) {
+        // セクションの関連性をスコアリング
+        $score = 0;
+        $content = isset($section['content']) ? $section['content'] : '';
+        $title = isset($section['title']) ? $section['title'] : '';
+        $url = isset($section['url']) ? $section['url'] : '';
+        
+        foreach ($queryKeywords as $keyword) {
+            // タイトルに含まれる場合は高いスコア
+            if (mb_stripos($title, $keyword) !== false) {
+                $score += 2;
+            }
+            // コンテンツに含まれる場合はスコア加算
+            if (mb_stripos($content, $keyword) !== false) {
+                $score += 1;
+            }
+        }
+        
+        if ($score > 0) {
+            $relevantSections[] = [
+                'content' => $title . "\n" . $content,
+                'url' => $url,
+                'score' => $score
+            ];
+        }
+    }
+    
+    // スコアで降順ソート
+    usort($relevantSections, function($a, $b) {
+        return $b['score'] - $a['score'];
+    });
+    
+    // 上位3つのセクションを結合
+    $context = array_slice($relevantSections, 0, 3);
+    $contextText = '';
+    $urls = [];
+    
+    foreach ($context as $section) {
+        $contextText .= $section['content'] . "\n\n";
+        if (!empty($section['url'])) {
+            $urls[] = $section['url'];
+        }
+    }
+    
+    return [
+        'context' => $contextText,
+        'urls' => array_unique($urls)
+    ];
+}
+
+/**
+ * Main function to query Gemini AI and stream results
  * @param string $userPrompt User query
  * @param array $config Configuration parameters
  * @param string $credentialsPath Path to credentials file
  */
-function queryVertexAIStreaming($userPrompt, $config, $credentialsPath) {
-    $searchServiceClient = null;
-
+function queryGeminiAIStreaming($userPrompt, $config, $credentialsPath) {
+    global $GEMINI_API_KEY, $GEMINI_API_URL, $SYSTEM_PROMPT;
+    
     try {
         while (ob_get_level() > 0) {
             ob_end_clean();
@@ -90,384 +210,147 @@ function queryVertexAIStreaming($userPrompt, $config, $credentialsPath) {
             header('Content-Type: text/event-stream; charset=UTF-8');
             header('Cache-Control: no-cache');
             header('Connection: keep-alive');
-            header('X-Accel-Buffering: no'); // Disable Nginx buffering
+            header('X-Accel-Buffering: no');
         }
 
-        // Send connection confirmation message
-        debug_log("Connected. Waiting for AI response...");
+        // 接続確認メッセージを送信
+        debug_log("Connected. Waiting for Gemini response...");
         echo "event: status\n";
-        echo "data: " . json_encode(['status' => 'connected', 'message' => '接続完了。検索準備中...'], JSON_UNESCAPED_UNICODE) . "\n\n";
+        echo "data: " . json_encode(['status' => 'connected', 'message' => '接続完了。Gemini AI準備中...'], JSON_UNESCAPED_UNICODE) . "\n\n";
         ob_flush(); flush();
 
-        // Heartbeat function to keep connection alive
-        $lastHeartbeat = time();
-        function sendHeartbeat(&$lastHeartbeat) {
-            $now = time();
-            if ($now - $lastHeartbeat >= 10) { // Send heartbeat every 10 seconds
-                echo "event: heartbeat\n";
-                echo "data: " . json_encode(['timestamp' => $now], JSON_UNESCAPED_UNICODE) . "\n\n";
-                ob_flush(); flush();
-                $lastHeartbeat = $now;
-                return true;
+        // APIキーの取得
+        if (empty($GEMINI_API_KEY)) {
+            $apiKeyFile = __DIR__ . '/gemini_api_key.txt';
+            if (!file_exists($apiKeyFile)) {
+                throw new Exception('Gemini API key file not found');
             }
-            return false;
+            $GEMINI_API_KEY = trim(file_get_contents($apiKeyFile));
+            if (empty($GEMINI_API_KEY)) {
+                throw new Exception('Gemini API key is empty');
+            }
         }
 
-        try {
-            $searchServiceClient = new SearchServiceClient(['credentials' => $credentialsPath]);
-            
-            // Send heartbeat
-            sendHeartbeat($lastHeartbeat);
-        } catch (Exception $e) { 
-            $errorMsg = 'SearchServiceClient initialization error: ' . $e->getMessage();
-            debug_log($errorMsg);
-            echo "event: error\n";
-            echo "data: " . json_encode(['error' => 'APIサービスとの接続に失敗しました。'], JSON_UNESCAPED_UNICODE) . "\n\n";
-            ob_flush(); flush();
-            return; 
+        // マニュアルデータの読み込みと関連コンテキストの検索
+        $manualData = loadManualData();
+        $relevantData = findRelevantContext($userPrompt, $manualData);
+        $relevantContext = $relevantData['context'];
+        $relevantUrls = $relevantData['urls'];
+        
+        // コンテキスト付きのプロンプト作成
+        $contextPrompt = empty($relevantContext) ? $userPrompt : 
+            "以下のマニュアル情報を参考に質問に答えてください：\n\n" .
+            "=== マニュアル情報 ===\n" .
+            $relevantContext .
+            "\n=== ユーザーの質問 ===\n" .
+            $userPrompt;
+
+        // Gemini APIリクエストの準備
+        $requestData = [
+            'contents' => [
+                [
+                    'parts' => [
+                        [
+                            'text' => $SYSTEM_PROMPT
+                        ]
+                    ],
+                    'role' => 'system'
+                ],
+                [
+                    'parts' => [
+                        [
+                            'text' => $contextPrompt
+                        ]
+                    ],
+                    'role' => 'user'
+                ]
+            ],
+            'generationConfig' => [
+                'temperature' => 0.7,
+                'topK' => 40,
+                'topP' => 0.95,
+                'maxOutputTokens' => 2048,
+            ],
+            'safetySettings' => [
+                [
+                    'category' => 'HARM_CATEGORY_HARASSMENT',
+                    'threshold' => 'BLOCK_MEDIUM_AND_ABOVE'
+                ],
+                [
+                    'category' => 'HARM_CATEGORY_HATE_SPEECH',
+                    'threshold' => 'BLOCK_MEDIUM_AND_ABOVE'
+                ],
+                [
+                    'category' => 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+                    'threshold' => 'BLOCK_MEDIUM_AND_ABOVE'
+                ],
+                [
+                    'category' => 'HARM_CATEGORY_DANGEROUS_CONTENT',
+                    'threshold' => 'BLOCK_MEDIUM_AND_ABOVE'
+                ]
+            ]
+        ];
+
+        // APIリクエストの実行
+        $ch = curl_init($GEMINI_API_URL . '?key=' . $GEMINI_API_KEY);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($requestData));
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            'Content-Type: application/json'
+        ]);
+
+        // 処理状態の通知
+        echo "event: status\n";
+        echo "data: " . json_encode(['status' => 'processing', 'message' => 'Gemini AIに問い合わせ中...'], JSON_UNESCAPED_UNICODE) . "\n\n";
+        ob_flush(); flush();
+
+        // レスポンスの取得と処理
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($httpCode !== 200) {
+            throw new Exception('Gemini API error: HTTP ' . $httpCode);
         }
 
-        try {
-            // Preprocess query - extract keywords and optimize
-            $searchQuery = preprocessQuery($userPrompt);
-            debug_log("検索クエリ: " . $searchQuery);
-            
-            // Notify client of processing status
-            echo "event: status\n";
-            echo "data: " . json_encode(['status' => 'processing', 'message' => '検索中...'], JSON_UNESCAPED_UNICODE) . "\n\n";
-            ob_flush(); flush();
-
-            $formattedName = SearchServiceClient::servingConfigName(
-                $config['projectId'], $config['location'],
-                $config['dataStoreId'], $config['searchEngineId']
-            );
-            
-            // Send heartbeat
-            sendHeartbeat($lastHeartbeat);
-
-            $searchRequest = (new SearchRequest())
-                ->setServingConfig($formattedName)
-                ->setQuery($searchQuery)
-                ->setPageSize(15); // Get more results for filtering later
-            
-            // Notify client of processing status
-            echo "event: status\n";
-            echo "data: " . json_encode(['status' => 'processing', 'message' => '検索中...'], JSON_UNESCAPED_UNICODE) . "\n\n";
-            ob_flush(); flush();
-            
-            // Send heartbeat
-            sendHeartbeat($lastHeartbeat);
-
-            // Execute search
-            try {
-                // Notify client of search execution
-                debug_log("Google API検索実行: " . $searchQuery);
-                
-                $response = $searchServiceClient->search($searchRequest);
-                
-                debug_log("Google API検索完了");
-            } catch (ApiException $e) {
-                // Handle error and retry with basic search
-                debug_log("検索エラー、基本検索に切り替え: " . $e->getMessage());
-                
-                // Create more basic search request
-                $searchRequest = (new SearchRequest())
-                    ->setServingConfig($formattedName)
-                    ->setQuery($searchQuery)
-                    ->setPageSize(15);
-                
-                $response = $searchServiceClient->search($searchRequest);
-                debug_log("基本検索完了");
-            }
-            
-            // Send heartbeat
-            sendHeartbeat($lastHeartbeat);
-
-            // Function to maintain connection
-            $lastHeartbeat = time();
-            function maintainConnection(&$lastHeartbeat) {
-                if (time() - $lastHeartbeat > 10) {
-                    echo ":\n\n"; // Send comment line to maintain connection
-                    ob_flush(); flush();
-                    $lastHeartbeat = time();
-                }
-            }
-
-            // Process response
-            $resultCount = 0;
-            $relevantResults = [];  // Array to hold relevant results
-
-            foreach ($response->getIterator() as $searchResult) {
-                $resultCount++;
-                if (!method_exists($searchResult, 'getDocument')) {
-                    continue;
-                }
-                $document = $searchResult->getDocument();
-
-                // Calculate relevance score
-                $relevanceScore = calculateRelevanceScore($searchQuery, $document, $searchResult);
-                
-                // Skip results with low relevance score (below 0.3)
-                if ($relevanceScore < 0.3) {
-                    continue;
-                }
-                
-                // Convert Protobuf\Struct to PHP associative array
-                $structData = null;
-                $_structDataProto = $document->getStructData();
-                if ($_structDataProto !== null) {
-                    try {
-                        if (method_exists($_structDataProto, 'serializeToJsonString')) {
-                            $structDataJson = $_structDataProto->serializeToJsonString();
-                            $structData = json_decode($structDataJson, true);
-                            if (json_last_error() !== JSON_ERROR_NONE) {
-                                $structData = null;
-                            }
-                        }
-                    } catch (Exception $e) {
-                        $structData = null;
-                    }
-                }
-
-                $derivedData = null;
-                $_derivedDataProto = $document->getDerivedStructData();
-                if ($_derivedDataProto !== null) {
-                    try {
-                        if (method_exists($_derivedDataProto, 'serializeToJsonString')) {
-                            $derivedDataJson = $_derivedDataProto->serializeToJsonString();
-                            $derivedData = json_decode($derivedDataJson, true);
-                            if (json_last_error() !== JSON_ERROR_NONE) {
-                                $derivedData = null;
-                            }
-                        }
-                    } catch (Exception $e) {
-                        $derivedData = null;
-                    }
-                }
-
-                // Extract content and URL from converted PHP arrays
-                $answerText = '関連情報が見つかりませんでした。';
-                if ($structData !== null) {
-                    if (isset($structData['snippet']) && !empty(trim($structData['snippet']))) {
-                        $answerText = $structData['snippet'];
-                    } elseif (isset($structData['content']) && !empty(trim($structData['content']))) {
-                        $answerText = $structData['content'];
-                    } elseif (isset($structData['text']) && !empty(trim($structData['text']))) {
-                        $answerText = $structData['text'];
-                    } elseif (isset($structData['description']) && !empty(trim($structData['description']))) {
-                        $answerText = $structData['description'];
-                    } elseif (isset($structData['title']) && !empty(trim($structData['title']))) {
-                        $answerText = $structData['title'];
-                    }
-                } else {
-                    $contentObj = $document->getContent();
-                    if ($contentObj && method_exists($contentObj, 'getRawText') && !empty(trim($contentObj->getRawText()))) {
-                        $answerText = $contentObj->getRawText();
-                    } elseif ($contentObj && method_exists($contentObj, 'getUri')) {
-                        $answerText = 'Content location: ' . $contentObj->getUri();
-                    }
-                }
-
-                $pageUrl = '';
-                if ($derivedData !== null) {
-                    if (isset($derivedData['link']) && !empty($derivedData['link'])) {
-                        $pageUrl = $derivedData['link'];
-                    } elseif (isset($derivedData['url']) && !empty($derivedData['url'])) {
-                        $pageUrl = $derivedData['url'];
-                    } elseif (isset($derivedData['uri']) && !empty($derivedData['uri'])) {
-                        $pageUrl = $derivedData['uri'];
-                    } elseif (isset($derivedData['page_url']) && !empty($derivedData['page_url'])) {
-                        $pageUrl = $derivedData['page_url'];
-                    }
-                }
-                
-                // Check $structData for URL if not found in $derivedData
-                if (empty($pageUrl) && $structData !== null) {
-                    if (isset($structData['link']) && !empty($structData['link'])) {
-                        $pageUrl = $structData['link'];
-                    } elseif (isset($structData['url']) && !empty($structData['url'])) {
-                        $pageUrl = $structData['url'];
-                    } elseif (isset($structData['uri']) && !empty($structData['uri'])) {
-                        $pageUrl = $structData['uri'];
-                    } elseif (isset($structData['page_url']) && !empty($structData['page_url'])) {
-                        $pageUrl = $structData['page_url'];
-                    }
-                }
-                
-                // Last resort: check document object properties for URL
-                if (empty($pageUrl)) {
-                    $contentObj = $document->getContent();
-                    if ($contentObj && method_exists($contentObj, 'getUri') && !empty($contentObj->getUri())) {
-                        $pageUrl = $contentObj->getUri();
-                    }
-                }
-                
-                // Process URL for proper formatting
-                if (!empty($pageUrl)) {
-                    $slashPos = strpos($pageUrl, '/');
-                    if ($slashPos !== false && $slashPos > 0) {
-                        // Replace leading directory with "../"
-                        $pageUrl = '../' . substr($pageUrl, $slashPos + 1);
-                    } else {
-                        // If no slash, just add "../"
-                        $pageUrl = '../' . $pageUrl;
-                    }
-                }
-
-                // Summarize long text for better display
-                $originalText = $answerText;
-                $hasFullText = false;
-                
-                if (mb_strlen($answerText) > 500) {
-                    $hasFullText = true;
-                    $answerText = summarizeText($answerText);
-                }
-
-                // Improve text readability by adding line breaks
-                $answerText = improveTextReadability($answerText);
-                if ($hasFullText) {
-                    $originalText = improveTextReadability($originalText);
-                }
-
-                // Convert arrays/objects to JSON if needed
-                if (is_array($answerText) || is_object($answerText)) {
-                    $answerText = json_encode($answerText, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
-                }
-                
-                // Save as relevant result
-                $resultItem = [
-                    'answer' => $answerText, 
-                    'page_url' => $pageUrl, 
-                    'doc_id' => $document->getId(),
-                    'relevance_score' => $relevanceScore
-                ];
-                
-                // Save original text if summarized
-                if ($hasFullText) {
-                    $resultItem['has_full_text'] = true;
-                    $resultItem['full_text'] = $originalText;
-                }
-                
-                $relevantResults[] = $resultItem;
-            } // end foreach
-
-            // Sort by relevance
-            usort($relevantResults, function($a, $b) {
-                return $b['relevance_score'] <=> $a['relevance_score'];
-            });
-
-            // Send top relevant results
-            $resultsSent = 0;
-            foreach ($relevantResults as $result) {
-                echo "event: answer\n";
-                echo "data: " . json_encode($result, JSON_UNESCAPED_UNICODE) . "\n\n";
-                ob_flush(); flush();
-                usleep(50000);
-                $resultsSent++;
-            }
-
-            // Handle case when no results are found
-            if ($resultsSent === 0) {
-                // Use summary if available
-                if (method_exists($response, 'getSummary') && ($summary = $response->getSummary()) !== null) {
-                    if (method_exists($summary, 'getSummaryText') && !empty(trim($summary->getSummaryText()))) {
-                        $finalMessage = $summary->getSummaryText();
-                    } else { 
-                        $finalMessage = '関連情報が見つかりませんでした。';
-                    }
-                    
-                    // Get references if available
-                    if (method_exists($summary, 'getReferences') && !empty($summary->getReferences())) {
-                        $references = [];
-                        foreach ($summary->getReferences() as $reference) {
-                            if (method_exists($reference, 'getUri')) {
-                                $references[] = $reference->getUri();
-                            }
-                        }
-                        
-                        echo "event: answer\n";
-                        echo "data: " . json_encode([
-                            'answer' => $finalMessage,
-                            'references' => $references,
-                            'is_summary' => true
-                        ], JSON_UNESCAPED_UNICODE) . "\n\n";
-                        ob_flush(); flush();
-                    } else {
-                        echo "event: status\n";
-                        echo "data: " . json_encode([
-                            'status' => 'no_results', 
-                            'message' => $finalMessage
-                        ], JSON_UNESCAPED_UNICODE) . "\n\n";
-                        ob_flush(); flush();
-                    }
-                } else {
-                    echo "event: status\n";
-                    echo "data: " . json_encode([
-                        'status' => 'no_results', 
-                        'message' => '関連情報が見つかりませんでした。'
-                    ], JSON_UNESCAPED_UNICODE) . "\n\n";
-                    ob_flush(); flush();
-                }
-            } else {
-                // Send summary info if multiple results
-                if ($resultsSent > 1) {
-                    // Send search results overview
-                    echo "event: summary\n";
-                    echo "data: " . json_encode([
-                        'status' => 'results_summary',
-                        'count' => $resultsSent,
-                        'message' => "{$resultsSent}件の検索結果が見つかりました。各結果は自動的に要約されています。"
-                    ], JSON_UNESCAPED_UNICODE) . "\n\n";
-                    ob_flush(); flush();
-                }
-            }
-
-        } catch (ApiException $e) { 
-            $errorMsg = 'API call error: ' . $e->getMessage() . ' (Code: ' . $e->getCode() . ')';
-            debug_log($errorMsg);
-            
-            // Notify client of error
-            echo "event: error\n";
-            echo "data: " . json_encode(['error' => '検索サービスでエラーが発生しました。'], JSON_UNESCAPED_UNICODE) . "\n\n";
-            ob_flush(); flush();
-        }
-        catch (Exception $e) { 
-            $errorMsg = 'General error: ' . $e->getMessage();
-            debug_log($errorMsg);
-            
-            // Notify client of error
-            echo "event: error\n";
-            echo "data: " . json_encode(['error' => 'エラーが発生しました。'], JSON_UNESCAPED_UNICODE) . "\n\n";
-            ob_flush(); flush();
+        $responseData = json_decode($response, true);
+        if (!isset($responseData['candidates'][0]['content']['parts'][0]['text'])) {
+            throw new Exception('Invalid response format from Gemini API');
         }
 
-        // Send completion signal
+        $answer = $responseData['candidates'][0]['content']['parts'][0]['text'];
+        
+        // 応答の整形と送信
+        $formattedAnswer = improveTextReadability($answer);
+        
+        echo "event: answer\n";
+        echo "data: " . json_encode([
+            'answer' => $formattedAnswer,
+            'relevance_score' => 1.0,
+            'page_urls' => $relevantUrls
+        ], JSON_UNESCAPED_UNICODE) . "\n\n";
+        ob_flush(); flush();
+
+        // 完了通知
         echo "event: status\n";
         echo "data: " . json_encode(['status' => 'completed'], JSON_UNESCAPED_UNICODE) . "\n\n";
         ob_flush(); flush();
 
-    } catch (Throwable $e) { 
-        $errorMsg = 'Fatal error: ' . $e->getMessage();
+    } catch (Exception $e) {
+        $errorMsg = 'Error: ' . $e->getMessage();
         debug_log($errorMsg);
         
-        // Notify client of error
         echo "event: error\n";
-        echo "data: " . json_encode(['error' => '深刻なエラーが発生しました。'], JSON_UNESCAPED_UNICODE) . "\n\n";
+        echo "data: " . json_encode(['error' => 'Gemini AIでエラーが発生しました: ' . $e->getMessage()], JSON_UNESCAPED_UNICODE) . "\n\n";
         ob_flush(); flush();
     }
-    finally {
-        if ($searchServiceClient !== null) {
-            $searchServiceClient->close();
-        }
-    }
-} // end function queryVertexAIStreaming
+}
 
 // Process request
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
-    // Read JSON request body
     $json_data = file_get_contents('php://input');
     
-    // Decode JSON data
     $post_data = json_decode($json_data, true);
     if (json_last_error() !== JSON_ERROR_NONE) {
         debug_log('JSONデータの解析に失敗: ' . json_last_error_msg());
@@ -492,18 +375,10 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') {
         die('Configuration file not found');
     }
     $config = require $configPath;
-    $requiredConfigKeys = ['projectId', 'location', 'dataStoreId', 'searchEngineId'];
-    foreach ($requiredConfigKeys as $key) {
-        if (!isset($config[$key]) || empty($config[$key])) {
-            debug_log('必須の設定キーがありません: ' . $key);
-            die("Missing required configuration key: {$key}");
-        }
-    }
 
-    // Call main function
-    queryVertexAIStreaming($userPrompt, $config, $credentialsPath);
+    // Call main function with Gemini
+    queryGeminiAIStreaming($userPrompt, $config, $credentialsPath);
 } else {
-    // Only accept POST requests
     header('HTTP/1.1 405 Method Not Allowed');
     header('Allow: POST');
     echo "This endpoint only accepts POST requests.";

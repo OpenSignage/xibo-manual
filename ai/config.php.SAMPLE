@@ -1,8 +1,1 @@
-<?php
-
-return [
-    'projectId' => 'YOUR_PROJECT_ID',
-    'location' => 'global',
-    'dataStoreId' => 'YOUR_DATA_STORE_ID',
-    'searchEngineId' => 'YOUR_SEARCH_ENGINE_ID',
-];
+ 
