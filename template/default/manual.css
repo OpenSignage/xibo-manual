@@ -108,3 +108,10 @@ cloud {
 tip {
     background: aliceblue;
 }
+
+/*
+ * Hide {feat} block
+ */
+.single-feature-card {
+  display: none;
+}
