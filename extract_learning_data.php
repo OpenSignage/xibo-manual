@@ -6,16 +6,19 @@ function extractTextFromHtml($htmlFilePath, $targetClass) {
     $xpath = new DOMXPath($dom);
     $text = '';
 
-    $nodes = $xpath->query('//div[contains(@class, "' . $targetClass . '")]//*[not(self::script or self::style)]/text()');
+    $nodes = $xpath->query("//div[@class='col-md-7']//text()[not(parent::script) and not(parent::style)]");
     foreach ($nodes as $node) {
-        $text .= trim($node->nodeValue) . "\n";
+        $trimmed = trim($node->nodeValue);
+        if ($trimmed !== '') {
+            $text .= $trimmed . "\n";
+        }
     }
     return $text;
 }
 
 function processHtmlFiles($directoryPath, $targetClass) {
     $files = scandir($directoryPath);
-    $output = '';
+    $output = [];
 
     foreach ($files as $file) {
         if ($file === '.' || $file === '..') {
@@ -29,13 +32,12 @@ function processHtmlFiles($directoryPath, $targetClass) {
             $formattedText = formatText($extractedText);
             $fileKey = pathinfo($file, PATHINFO_FILENAME);
 
-            // NDJSON形式で出力文字列を生成
-            $jsonLine = json_encode([
+            // 配列にオブジェクトを追加
+            $output[] = [
                 'id' => $fileKey,
                 'content' => $formattedText,
                 'page_url' => $filePath,
-            ], JSON_UNESCAPED_UNICODE) . "\n";
-            $output .= $jsonLine;
+            ];
         }
     }
     return $output;
@@ -49,14 +51,13 @@ function formatText($text) {
 }
 
 $sourceDirectory = 'output/ja';
-$outputFile = 'learning_data.json'; // 出力ファイル名を変更
-$targetClass = 'col-md-7'; // 抽出対象のclass名を指定
+$outputFile = 'ai/learning_data.json';
+$targetClass = 'col-md-7';
 
+$output = processHtmlFiles($sourceDirectory, $targetClass);
 
-$ndjsonOutput = processHtmlFiles($sourceDirectory, $targetClass);
-
-// NDJSON形式のデータをファイルに書き込み
-file_put_contents($outputFile, $ndjsonOutput);
+// JSON形式でデータをファイルに書き込み
+file_put_contents($outputFile, json_encode($output, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
 
 echo "データが {$outputFile} に保存されました。\n";
 
