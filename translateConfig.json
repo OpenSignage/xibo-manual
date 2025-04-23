@@ -1,0 +1,6 @@
+{
+    "sourceLanguage": "en",
+    "targetLanguage": "ja",
+    "inputDir": "source/en/",
+    "outputDir": "source/ja/"
+} 
