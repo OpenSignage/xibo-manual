@@ -2,7 +2,6 @@ output/
 
 desktop.ini
 apikey.txt
-translate_with_glossary.php
 
 ai/serviceAccountPath.txt
 ai/config.php

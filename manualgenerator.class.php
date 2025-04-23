@@ -122,6 +122,7 @@ class ManualGenerator
         }
 
         $languages = array();
+        $features = array(); 
 
         // Get a list of folders
         foreach (array_diff(scandir($this->sourcePath . 'source'), array('..', '.')) as $langDir) {
@@ -135,11 +136,13 @@ class ManualGenerator
                 if (is_dir($this->sourcePath . 'source/' . $langDir . '/img')) {
                     $this->xcopy($this->sourcePath . 'source/' . $langDir . '/img', $this->outputPath . $langDir . '/img');
                 }
-
+                // Read language specific features from .json file
+                $features[$langDir] = json_decode(file_get_contents($this->sourcePath . 'source/' . $langDir . '/tag/features.json'),true);
                 if ($langDir != 'en')
                     $languages[] = $langDir;
             }
         }
+
 
         // Process each detected language
         $langsString = '<a href="../en/index.html">en</a>';
@@ -157,11 +160,11 @@ class ManualGenerator
         foreach (array_diff(scandir($this->sourcePath . 'source/en'), array('..', '.')) as $file) {
             if (stripos($file, '.md')) {
                 // Process each file in turn
-                $this->processFile($langsString, $this->outputPath, 'en', str_replace('.md', '', $file));
+                $this->processFile($langsString, $this->outputPath, 'en', str_replace('.md', '', $file), $features['en']);
 
                 // Process for the other languages.
                 foreach ($languages as $lang) {
-                    $this->processFile($langsString, $this->outputPath, $lang, str_replace('.md', '', $file));
+                    $this->processFile($langsString, $this->outputPath, $lang, str_replace('.md', '', $file), $features[$lang]);
                 }
             }
         }
@@ -174,8 +177,8 @@ class ManualGenerator
         $headerLocation = $this->path('header.html');
         $footerLocation = $this->path('footer.html');
 
-        $this->template  = $this->processReplacements(file_get_contents($headerLocation));
-        $this->template .= $this->processReplacements(file_get_contents($footerLocation));
+        $this->template  = $this->processReplacements(file_get_contents($headerLocation), '');
+        $this->template .= $this->processReplacements(file_get_contents($footerLocation), '');
     }
 
     /**
@@ -184,15 +187,16 @@ class ManualGenerator
      * @param string $folder the folder
      * @param string $lang the current language
      * @param string $file the file
+     * @param array  $feature
      * @throws \DOMException
      */
-    private function processFile($langs, $folder, $lang, $file)
+    private function processFile($langs, $folder, $lang, $file, $feature)
     {
         echo '.';
         flush();
 
         // Get the page content
-        $pageContent = $this->processReplacements($this->file_get_contents_or_default($lang, $file . '.md'));
+        $pageContent = $this->processReplacements($this->file_get_contents_or_default($lang, $file . '.md'), $feature);
 
         // Do we have front-matter or the old TOC comment.
         $toc = strtok($pageContent, "\n");
@@ -271,7 +275,7 @@ class ManualGenerator
             if (in_array($toc, $nav['containsToc'])) {
                 $navToc = $toc;
                 $tocString = self::getHtml(
-                    $this->processReplacements($this->file_get_contents_or_default($lang, 'toc/' . $toc . '.md'))
+                    $this->processReplacements($this->file_get_contents_or_default($lang, 'toc/' . $toc . '.md'), '')
                 );
 
                 // highlight the sub link in this toc
@@ -306,44 +310,45 @@ class ManualGenerator
         file_put_contents($folder . $lang . DIRECTORY_SEPARATOR . $file . '.html', $string);
     }
 
-    private function generateTOC($html, $minHeadingLevel = 1, $maxHeadingLevel = 6) {
-    $dom = new DOMDocument();
-    @$dom->loadHTML($html);
+    private function generateTOC($html, $minHeadingLevel = 1, $maxHeadingLevel = 6)
+    {
+        $dom = new DOMDocument();
+        @$dom->loadHTML($html);
 
-    $headings = [];
+        $headings = [];
 
-    // すべての要素を取得
-    $allElements = $dom->getElementsByTagName('*');
+        // すべての要素を取得
+        $allElements = $dom->getElementsByTagName('*');
 
-    // 要素をループ処理して見出し要素を抽出
-    foreach ($allElements as $element) {
-        $tagName = $element->tagName;
-        if (in_array($tagName, ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'])) { // h6 までチェック
-            $id = $element->getAttribute('id');
-            $text = $element->textContent;
-            $level = (int)substr($tagName, 1); // タグ名からレベルを取得
-            if ($id && $text) {
-                $headings[] = ['id' => $id, 'text' => $text, 'level' => $level];
+        // 要素をループ処理して見出し要素を抽出
+        foreach ($allElements as $element) {
+            $tagName = $element->tagName;
+            if (in_array($tagName, ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'])) { // h6 までチェック
+                $id = $element->getAttribute('id');
+                $text = $element->textContent;
+                $level = (int)substr($tagName, 1); // タグ名からレベルを取得
+                if ($id && $text) {
+                    $headings[] = ['id' => $id, 'text' => $text, 'level' => $level];
+                }
             }
         }
+        if (empty($headings)) {
+            return '<p>指定されたレベル範囲に見出しがありません。</p>';
+        }
+
+        $toc = '';
+        $previousLevel = $minHeadingLevel;
+
+        foreach ($headings as $heading) {
+            $level = $heading['level'];
+            $indent = str_repeat('&nbsp;', $level - $minHeadingLevel); // インデントを生成
+
+            $toc .= '<p>' . $indent . '<a href="#' . $heading['id'] . '">' . htmlspecialchars($heading['text']) . '</a></p>';
+            $previousLevel = $level;
+        }
+
+        return $toc;
     }
-    if (empty($headings)) {
-        return '<p>指定されたレベル範囲に見出しがありません。</p>';
-    }
-
-    $toc = '';
-    $previousLevel = $minHeadingLevel;
-
-    foreach ($headings as $heading) {
-        $level = $heading['level'];
-        $indent = str_repeat('&nbsp;', $level - $minHeadingLevel); // インデントを生成
-
-        $toc .= '<p>' . $indent . '<a href="#' . $heading['id'] . '">' . htmlspecialchars($heading['text']) . '</a></p>';
-        $previousLevel = $level;
-    }
-
-    return $toc;
-}
 
     private function file_get_contents_or_default($lang, $file)
     {
@@ -353,7 +358,19 @@ class ManualGenerator
             return file_get_contents($this->sourcePath . 'source' . DIRECTORY_SEPARATOR . 'en' . DIRECTORY_SEPARATOR . $file);
     }
 
-    private function processReplacements($string)
+    private function generateStatusHTML($stat)
+    {
+        if (is_bool($stat)) {
+            $HTMLString = $stat ? '<img class="img-close mt-10" src="img/check-green.svg" alt="" data-processed="true">' : '<img class="img-close mt-10" src="img/close-grey.svg" alt="" data-processed="true">';
+        } elseif (is_string($stat)) {
+            $HTMLString = '<span>' . $stat . '</span>';
+        } else {
+            $HTMLString = '';
+        }
+        return $HTMLString;
+    }
+
+    private function processReplacements($string, $status)
     {
         // Replace the nav bar
         $string = str_replace('[[PRODUCTNAME]]', $this->productName, $string);
@@ -406,8 +423,31 @@ class ManualGenerator
             return '<blockquote class="version">' . (($isSvg) ? '<img class="blockquote-image" src="../img/svg/Home/icon_home_version.svg" />' : '') . self::getHtml($match) . '</blockquote>';
         }, $string);
 
+
+        // Create feature information
+        $featureString = '';
+        if (preg_match('/{feat\s*([^}]*)}.*?{\/feat}/s', $string, $matches)) {
+            $outputString = explode( '|' ,preg_replace('/{feat\s*}|{\/feat}/', '', $matches[0]));
+            if ($outputString[1] == 'v' . $this->productVersion) {
+                 $supportStatus = $status[$outputString[0]];
+        // Genarate features in html format
+                $featureString .= '<div class="single-feature-card mt-24 mb-50"> <div class="single-feature-card-header">';
+                $featureString .= '<ul> <li>' . $supportStatus["name"] . '</li> <li class="cms-before">Available from CMS: ' . $supportStatus["available"] . '</li> </ul> </div>'; 
+                $featureString .= '<div class="single-feature-card-body"> <ul data-bs-toggle="tooltip" data-bs-placement="top" title="" data-bs-original-title="">'; 
+                $featureString .= '<li> <figure> <img src="img/icon-xibo-for-android.png" alt="" data-processed="true"></figure>' . $this->generateStatusHTML($supportStatus["android"]) . '</li>'; 
+                $featureString .= '<li> <figure class="player-soc"><img src="img/icon-xibo-for-tizen.png" alt="" data-processed="true"></figure>' . $this->generateStatusHTML($supportStatus["tizen"]) . '</li>'; 
+                $featureString .= '<li> <figure><img class="ml-decrement-6" src="img/icon-xibo-for-linux.png" alt="" data-processed="true"></figure>' . $this->generateStatusHTML($supportStatus["ubuntu"]) .  '</li>';
+                $featureString .= '<li> <figure><img src="img/icon-xibo-for-windows.png" alt="" data-processed="true"></figure>' . $this->generateStatusHTML($supportStatus["windows"]) . '</li>'; 
+                $featureString .= '<li> <figure class="player-soc"><img src="img/icon-xibo-for-webos.png" alt="" data-processed="true"></figure>' . $this->generateStatusHTML($supportStatus["webos"]) . '</li>'; 
+                $featureString .= '<li> <figure class="player-chromeos"><img src="img/icon-xibo-for-chromeos.png" alt="" data-processed="true"></figure>' . $this->generateStatusHTML($supportStatus["webos"]) . '</li>'; 
+                $featureString .= '</ul> </div> </div>';
+            } 
+        }
+
+        $string = preg_replace('/({(feat)\b[^}]*}).*?({\/\2})/s', $featureString, $string);
+
         // Strip out other not supported tags.
-        $string = preg_replace('/({(feat)\b[^}]*}).*?({\/\2})/s', '', $string);
+//        $string = preg_replace('/({(feat)\b[^}]*}).*?({\/\2})/s', '', $string);
         $string = preg_replace('/({(feat_cat)\b[^}]*}).*?({\/\2})/s', '', $string);
         $string = preg_replace('/({(product)\b[^}]*}).*?({\/\2})/s', '', $string);
 //        $string = preg_replace('/({(version)\b[^}]*}).*?({\/\2})/s', '', $string);
