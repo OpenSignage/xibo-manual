@@ -60,18 +60,111 @@ Themes must exist in `/template/custom/<theme_name>` to be built. They
 are built using inheritance from the default theme.
 
 ## Translations
-To translate English manual to Japanese, translator.php can provide machine translation.
+The `translator.php` script provides automated translation functionality from English to other languages (primarily Japanese) using the Google Cloud Translation API.
 
-```
-php translate.php [translation target md file]
-```
-If target is not specified, all .md files will be translated.
+### Prerequisites
+1. Google Cloud Translation API Key
+   - Create a file named `apikey.txt` in the root directory
+   - Add your Google Cloud Translation API key to this file
 
-We are using Google translate API, you need to get API KEY to run this program.
+2. Configuration File (Optional)
+   - Create `translateConfig.json` to customize translation settings
+   - Default configuration:
+     ```json
+     {
+       "sourceLanguage": "en",
+       "targetLanguage": "ja",
+       "inputDir": "source/en/",
+       "outputDir": "source/ja/"
+     }
+     ```
+
+3. Glossary (Optional)
+   - Create `glossary.json` to define custom translations for specific terms
+   - Format:
+     ```json
+     {
+       "source term": "target translation"
+     }
+     ```
+
+4. Exclusion List (Optional)
+   - Create `exclude.json` to specify terms that should not be translated
+   - Terms in this list will be preserved in their original form
+
+### Usage
+```bash
+php translator.php [file1.md file2.md ...]
+```
+- If no files are specified, all .md files in the source directory will be translated
+- Translated files are saved in the output directory with the same filename
+- The script preserves special formatting and protected terms
+
+### Features
+- Automated translation using Google Cloud Translation API
+- Custom glossary support for consistent terminology
+- Exclusion list for protecting specific terms from translation
+- Batch processing of multiple files
+- Configurable source and target directories
+- Preservation of markdown formatting
+
+### Directory Structure
+```
+xibo-manual/
+├── translator.php
+├── translateConfig.json
+├── glossary.json
+├── exclude.json
+├── apikey.txt
+├── source/
+│   ├── en/
+│   │   └── *.md
+│   └── ja/
+│       └── *.md
+```
 
 Japanese translation is handled by Open Source Digital Signage Initiative.
 
-## AI assistant (Custom function)
+## AI Assistant (Custom function)
+The AI Assistant feature provides an interactive help system powered by Google's Gemini AI. This feature allows users to ask questions about Xibo in natural language and receive contextually relevant answers.
+
+### Features
+- Real-time AI-powered responses
+- Context-aware answers based on manual content
+- Support for natural language queries
+- Interactive chat-like interface
+- Automatic source reference linking
+
+### Setup Requirements
+1. Google Gemini API Key
+   - Create a file named `gemini_api_key.txt` in the `/ai` directory
+   - Add your Gemini API key to this file
+
+2. Manual Data
+   - Ensure `learning_data.json` exists in the `/ai` directory
+   - This file contains the preprocessed manual content
+
+3. System Prompt
+   - Create `system_prompt.txt` in the `/ai` directory
+   - This file contains the AI assistant's personality and response guidelines
+
+### Configuration
+The AI Assistant can be configured through the following files:
+- `aiSearchEngine.php`: Main backend processing
+- `assistant.html`: Frontend interface
+- `assistantStyle.css`: UI styling
+
+### Usage
+1. Access the AI Assistant through the manual interface
+2. Type your question in natural language
+3. Receive AI-generated responses with relevant manual references
+4. Click provided links to access detailed documentation
+
+### Technical Details
+- Uses Server-Sent Events (SSE) for real-time streaming responses
+- Implements semantic search for context-relevant information
+- Provides source attribution with direct links to manual sections
+- Supports both Japanese and English responses
 
 ## Google Search Engine (Custom function)
 You can search within the manual pages using the Google programmable search engine.
