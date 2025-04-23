@@ -14,6 +14,35 @@ php generate.php [template]
 ```
 If template is not specified, the default template will be used.
 
+### Feature Support Tags
+The manual supports special tags to display feature compatibility across different platforms. The `{feat}` tag is used to create feature support cards that show compatibility information.
+
+#### Usage
+```
+{feat}feature_name|version{/feat}
+```
+
+- `feature_name`: The identifier of the feature as defined in the language-specific `features.json`
+- `version`: The version number of the CMS (e.g., "v4")
+
+#### Example
+```
+{feat}dashboard|v4{/feat}
+```
+
+This will generate a feature card showing:
+- Feature name
+- CMS availability version
+- Support status for each platform:
+  - Android
+  - Tizen
+  - Ubuntu
+  - Windows
+  - WebOS
+  - ChromeOS
+
+The support status is pulled from the language-specific `features.json` file located in `source/<lang>/tag/features.json`.
+
 ### Docker
 It is also possible to build the manual using Docker, resulting in a Docker
 image which hosts the complete manual and a web server.
@@ -54,5 +83,5 @@ It takes a significant amount of time for Google to crawl the manual pages you h
 To make your site searchable as quickly as possible, we recommend that you register the URL of your manual page in the [Google Search Console](https://search.google.com/search-console).
 
 ## TODO
-1. Support <feat> and <video> tag in manual.
+1. Support <video> tag in manual.
 1. Support translation dictionary.
