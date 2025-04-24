@@ -11,7 +11,7 @@ persona: "コンテンツ作成者、スーパー管理者、ユーザー"
 
 さまざまなグローバル要素から選択してレイアウトに追加し、目を引くデザインを作成し、他のコンテンツを強化します。
 
-{nonwhite}{video}4NxcXfiKBfM{/video}{nonwhite}
+{nonwhite}{video}4NxcXfiKBfM{/video}{/nonwhite}
 
 ## 機能の概要
 

@@ -11,7 +11,7 @@ persona: "コンテンツ作成者、スーパー管理者、ユーザー"
 
 ライブラリ検索機能を使用して、[CMS ライブラリ](media_library.html) にすでに存在するメディアをレイアウト/プレイリストに追加します。
 
-{nonwhite}{video}yOd7QVuF16g{/video}{nonwhite}
+{nonwhite}{video}yOd7QVuF16g{/video}{/nonwhite}
 
 ライブラリ メディアは次のものから構成されます:
 

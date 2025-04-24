@@ -443,11 +443,35 @@ class ManualGenerator
                 $featureString .= '</ul> </div> </div>';
             } 
         }
-
         $string = preg_replace('/({(feat)\b[^}]*}).*?({\/\2})/s', $featureString, $string);
 
+        // YouTubeビデオ情報の処理
+        $videoString = '';
+        if (preg_match('/{video\s*([^}]*)}.*?{\/video}/s', $string, $matches)) {
+            $videoId = trim(preg_replace('/{video\s*}|{\/video}/', '', $matches[0]));
+
+            $videoString .= '<div class="video-frame">';
+            $videoString .= '<img src="http://img.youtube.com/vi/' . $videoId . '/maxresdefault.jpg" class="video-img">';
+            $videoString .= '<button type="button" class="video-play" data-toggle="modal" data-target="#youtubeModal" data-video-id="' . $videoId . '">';
+            $videoString .= '<img src="img/video-play-btn.png" alt="Video Play button" class="video-play-btn"> </button>';
+            $videoString .= '</div>';
+
+            $videoString .= '<div class="modal fade" id="youtubeModal" tabindex="-1" role="dialog" aria-labelledby="youtubeModalLabel" aria-hidden="true">';
+            $videoString .= '<div class="modal-dialog modal-lg" role="document">';
+            $videoString .= '<div class="modal-content"> <div class="modal-header">';
+            $videoString .= '<h5 class="modal-title" id="youtubeModalLabel">YouTubeビデオ</h5>';
+            $videoString .= '<button type="button" class="close" data-dismiss="modal" aria-label="閉じる"> <span aria-hidden="true">&times;</span> </button>';
+            $videoString .= '</div>';
+            $videoString .= '<div class="modal-body"> <div class="embed-responsive embed-responsive-16by9">';
+            $videoString .= '<iframe class="embed-responsive-item" id="youtubeIframe" src="" frameborder="0" allowfullscreen></iframe>';
+            $videoString .= '</div> </div> </div> </div> </div>';
+
+
+        }
+        $string = preg_replace('/({(video)\b[^}]*}).*?({\/\2})/s', $videoString, $string);
+
+
         // Strip out other not supported tags.
-//        $string = preg_replace('/({(feat)\b[^}]*}).*?({\/\2})/s', '', $string);
         $string = preg_replace('/({(feat_cat)\b[^}]*}).*?({\/\2})/s', '', $string);
         $string = preg_replace('/({(product)\b[^}]*}).*?({\/\2})/s', '', $string);
 //        $string = preg_replace('/({(version)\b[^}]*}).*?({\/\2})/s', '', $string);
