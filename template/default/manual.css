@@ -109,9 +109,42 @@ tip {
     background: aliceblue;
 }
 
+/*******************************
+ * Extended by Open Source Digital Signage Initiative
+ *******************************/
+
 /*
  * Hide {feat} block
  */
 .single-feature-card {
-  display: none;
+    display: none;
+}
+
+.video-frame {
+    width: fit-content;
+    width: 80%;
+    position: relative;
+}
+
+.video-img {
+    border: none;
+}
+
+.video-play {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    -ms-transform: translate(-50%,-50%);
+    -webkit-transform: translate(-50%,-50%);
+    transform: translate(-50%,-50%);
+    margin:0;
+    padding:0;
+    background-color: unset;
+    border: none;
+}
+
+.video-play-btn {
+    width:80px;
+    background-color:transparent;
+    border: none;
 }

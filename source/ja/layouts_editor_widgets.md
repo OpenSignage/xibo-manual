@@ -11,7 +11,7 @@ persona: "コンテンツ作成者、スーパー管理者、ユーザー"
 
 ウィジェットは [[PRODUCTNAME]] のコア コンポーネントであり、**レイアウト** または **プレイリスト** にコンテンツを表示するために使用されます。
 
-{nonwhite}{video}-pGgF0ijzBg{/video}{nonwhite}
+{nonwhite}{video}-pGgF0ijzBg{/video}{/nonwhite}
 
 ## 機能の概要
 

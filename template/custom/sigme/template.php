@@ -31,6 +31,6 @@ define('PRODUCT_NAME', 'Sigme');
 define('PRODUCT_HOME', 'https://sigme.net');
 
 # Product Support URL
-define('PRODUCT_SUPPORT_URL', 'https://community.xibo.org.uk/');
-define('PRODUCT_FAQ_URL', 'https://community.xibo.org.uk/c/faq');
+define('PRODUCT_SUPPORT_URL', 'https://www.sigme.net/forums/');
+define('PRODUCT_FAQ_URL', 'https://www.sigme.net/forums/forum/faq/');
 
