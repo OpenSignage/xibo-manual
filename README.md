@@ -175,6 +175,31 @@ To use this function, you need to register your search site.
 It takes a significant amount of time for Google to crawl the manual pages you host on your site.
 To make your site searchable as quickly as possible, we recommend that you register the URL of your manual page in the [Google Search Console](https://search.google.com/search-console).
 
+### Video Support
+The manual now supports embedding YouTube videos using the `{video}` tag. This feature allows you to add interactive video content to your documentation.
+
+#### Usage
+```
+{video}VIDEO_ID{/video}
+```
+- `VIDEO_ID`: The YouTube video ID (e.g., "dQw4w9WgXcQ" from the URL https://www.youtube.com/watch?v=dQw4w9WgXcQ)
+
+#### Features
+- Responsive video thumbnails
+- Modal popup player
+- Automatic thumbnail loading from YouTube
+- Mobile-friendly interface
+- Lazy loading of video content
+
+#### Example
+```
+{video}dQw4w9WgXcQ{/video}
+```
+
+This will generate:
+- A clickable video thumbnail
+- A modal dialog with embedded YouTube player
+- Responsive layout that works on all devices
+
 ## TODO
-1. Support <video> tag in manual.
 1. Support translation dictionary.
